@@ -9,3 +9,9 @@ export interface Documents {
     ocr_extracted_text_arabic: string; 
 
 }
+
+// input type for creating a document
+export type CreateDocumentInput = Omit<Documents, 'document_id' | 'upload_timestamp'>;
+
+// input type for updating a document
+export type UpdateDocumentInput = Partial<CreateDocumentInput>;

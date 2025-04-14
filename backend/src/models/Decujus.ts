@@ -9,3 +9,9 @@ export interface Decujus {
     updated_at: string | Date;
     
 }
+
+// input type for creating a decujus
+export type CreateDecujusInput = Omit<Decujus, 'decujus_id' | 'created_at' | 'updated_at'>;
+
+// input type for updating a decujus
+export type UpdateDecujusInput = Partial<CreateDecujusInput>;

@@ -1,3 +1,4 @@
+// we declare the Users interface here
 export interface Users { 
 
     user_id: number; 
@@ -9,3 +10,10 @@ export interface Users {
     updated_at: string | Date;
     
 }
+
+// input type for creating a user 
+export type CreateUserInput = Omit<Users, 'user_id' | 'created_at' | 'updated_at'>;
+
+// input type for updating a user
+export type UpdateUserInput = Partial<CreateUserInput>;
+
