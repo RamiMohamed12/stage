@@ -23,7 +23,6 @@ export interface Declarations {
 } 
 
 // this is the input type for creating a declaration
-
 export type CreateDeclarationInput = Omit<Declarations, 'declaration_id' | 'created_at' | 'updated_at'>;
 
 // this is the input type for updating a declaration
