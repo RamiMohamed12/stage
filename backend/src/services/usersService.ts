@@ -1,99 +1,144 @@
 import pool from '../config/db';
-import { Users, CreateUserInput, UpdateUserInput } from '../models/Users';
+import { Users, CreateUserInput, UpdateUserInput, Role } from '../models/Users';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
 
-// custom error for the service 
-export class ServiceErorr extends Error{ 
+// custom error for the service
+export class ServiceErorr extends Error{
     constructor(message: string, public statusCode: number = 500) {
-        super(message); 
-        this.name = "ServiceError"; 
+        super(message);
+        this.name = "ServiceError";
     }
 }
 
 export const getUserbyId = async (userId: number): Promise<Users | null> => {
-    let connection: PoolConnection | undefined; // use PoolConnection type for connection
-    try { 
+    let connection: PoolConnection | undefined; 
+    try {
         connection = await pool.getConnection();
-        const sql = "SELECT user_id,email,first_name,last_name,created_at,updated_at FROM users WHERE user_id = ?";
+        // we use deleted_at IS NULL at the end to check if the user is bein soft deleted or not   
+        const sql = "SELECT user_id, email, password_hash, role, first_name, last_name, created_at, updated_at, deleted_at FROM users WHERE user_id = ? AND deleted_at IS NULL";
         const [rows] = await connection.execute<RowDataPacket[]>(sql, [userId]);
         if (rows.length === 0) {
-            return null; // user not found
+            return null; // user not found or soft-deleted
         }
-        return rows[0] as Users; // cast to Users
+        return rows[0] as Users;
     } catch (error: any) {
         console.error("Error in getUserById service: ", error);
-        throw new ServiceErorr("Failed to get user.", 500); // internal server error
-    } finally { 
-        if (connection) {
-            connection.release(); // release the connection back to the pool
-        }
-    }
-}
-
-
-export const createUser = async (user: CreateUserInput): Promise<Users> => {
-    const {email} = user; 
-    let connection: PoolConnection | undefined; // use PoolConnection type for connection
-    try { 
-        connection = await pool.getConnection(); 
-        const checkSql = 'SELECT user_id FROM users WHERE email = ?';
-        const[existing] =  await connection.execute<RowDataPacket[]>(checkSql, [email]);
-        if (existing.length > 0) {
-            throw new ServiceErorr('Email Already used.', 409); // conflict error
-        }
-
-        const insertSql = 'INSERT INTO users (email, password_hash, first_name, last_name) VALUES (?, ?, ?, ?)';
-        const[result] = await connection.execute<ResultSetHeader>(insertSql, [user.email, user.password_hash, user.first_name, user.last_name]);
-        if(result.affectedRows === 0) {
-            throw new ServiceErorr('Failed to create user.', 500); // internal server error
-        }
-    
-        const newUser = await getUserbyId(result.insertId);
-        if (!newUser) {
-            throw new ServiceErorr('Failed to retrieve new user.', 500); // internal server error
-        }
-        return newUser;
-    } catch(error: any){    
-    
-       console.log("Error while creating user: ", error);
-       if (error instanceof ServiceErorr) {
-            throw error; // rethrow the custom error
-        }
-        throw new ServiceErorr('Internal server error.', 500); // internal server error
-
-        
+        throw new ServiceErorr("Failed to get user by ID.", 500); // internal server error
     } finally {
         if (connection) {
-            connection.release(); // release the connection back to the pool
+            connection.release(); 
         }
     }
 }
 
+// createUser service to create a new user in the database
+export const createUser = async (user: CreateUserInput): Promise<Users> => {
+    const { email, password_hash, first_name, last_name, role = Role.USER } = user; 
+    let connection: PoolConnection | undefined; 
+
+    try {
+        connection = await pool.getConnection();
+
+        // we check if the email is used by active account or not
+        const checkSql = 'SELECT user_id FROM users WHERE email = ? AND deleted_at IS NULL';
+        const [existing] = await connection.execute<RowDataPacket[]>(checkSql, [email]);
+
+        // if the existing sql query returns any rows, it means the email is already used by an active account
+        if (existing.length > 0) {
+            throw new ServiceErorr('Email already used by an active account.', 409); 
+        }
+
+        // we try to insert a new user into the database
+        // we use a prepared statement to prevent sql injection attacks
+        const insertSql = 'INSERT INTO users (email, password_hash, first_name, last_name, role) VALUES (?, ?, ?, ?, ?)';
+        const values = [email, password_hash, first_name, last_name, role]; 
+
+        const [result] = await connection.execute<ResultSetHeader>(insertSql, values);
+
+        // if the insert operation did not affect any rows, it means the user was not created
+        if (result.affectedRows === 0) {
+            throw new ServiceErorr('Failed to create user.', 500); // Internal server error
+        }
+
+        // Fetch the newly created user (ensure getUserbyId selects the role field too)
+        const newUser = await getUserbyId(result.insertId);
+        if (!newUser) {
+            // This case might indicate an issue with getUserbyId or a race condition
+            throw new ServiceErorr('Failed to retrieve newly created user.', 500);
+        }
+
+        return newUser;
+
+    } catch (error: any) {
+        console.error("Error while creating user: ", error); // Log the actual error
+        if (error instanceof ServiceErorr) {
+            throw error; // Re-throw the custom error
+        }
+        throw new ServiceErorr('An internal error occurred while creating the user.', 500);
+
+    } finally {
+        if (connection) {
+            connection.release(); 
+        }
+    }
+}
+
+
+// getUserByEmail service to get a user by email from the database
+export const getUserByEmail = async (email: string): Promise<Users | null> => {
+    let connection: PoolConnection | undefined;
+    try {
+        connection = await pool.getConnection();
+        const sql = "SELECT user_id, email, password_hash, role, first_name, last_name, created_at, updated_at, deleted_at FROM users WHERE email = ? AND deleted_at IS NULL";
+        const [rows] = await connection.execute<RowDataPacket[]>(sql, [email]);
+        if (rows.length === 0) {
+            return null; // user not found or soft-deleted
+        }
+        // Ensure the fetched data is correctly cast, including the role
+        return rows[0] as Users;
+    } catch (error: any) {
+        console.error("Error in getUserByEmail service: ", error);
+        throw new ServiceErorr("Failed to get user by email.", 500); // internal server error
+    } finally {
+        if (connection) {
+            connection.release(); 
+        }
+    }
+}
+
+//getAllUsers service to get all users from the database
 export const getAllUsers = async (): Promise<Users[]> => {
-    let connection: PoolConnection | undefined; // use PoolConnection type for connection
+    let connection: PoolConnection | undefined;
     try  {
         connection = await pool.getConnection();
-        const sql = "SELECT user_id, email, first_name, last_name, created_at, updated_at FROM users";
+        const sql = "SELECT user_id, email, role, first_name, last_name, created_at, updated_at FROM users WHERE deleted_at IS NULL";
         const [rows] = await connection.execute<RowDataPacket[]>(sql);
-        return rows as Users[]; // cast to Users[]
+        return rows as Users[];
 
     } catch (error: any){
-        console.error("Error in getAllUsers service: ", error); 
-        throw new ServiceErorr("Failed to get users.", 500); // internal server error
+        console.error("Error in getAllUsers service: ", error);
+        throw new ServiceErorr("Failed to get all users.", 500); // internal server error
 
     } finally {
         if(connection) {
-            connection.release(); // release the connection back to the pool
+            connection.release(); 
         }
     }
-} 
+}
 
-export const updateUser = async (userId: number, user: UpdateUserInput): Promise<Users> => {
+// updateUser service to update a user in the database
+export const updateUser = async (userId: number, userUpdateData: UpdateUserInput): Promise<Users> => {
 
-    const updateFields = Object.keys(user);
+    // we check if there's anything to update
+    const updateFields = Object.keys(userUpdateData);
     if (updateFields.length === 0) {
-        throw new ServiceErorr('No fields provided for update.', 400);
+         const currentUser = await getUserbyId(userId);
+         if (!currentUser) {
+             throw new ServiceErorr(`User with ID ${userId} not found or is deleted.`, 404);
+         }
+         console.log(`No fields provided for update for user ${userId}. Returning current data.`);
+         return currentUser;
     }
 
     let connection: PoolConnection | undefined;
@@ -102,96 +147,120 @@ export const updateUser = async (userId: number, user: UpdateUserInput): Promise
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
-        // Get existing user data and lock the row for update
+        // get existing user data and lock the row for update (ensure role is selected and user is not deleted)
         const [existingUserRows] = await connection.execute<RowDataPacket[]>(
-            'SELECT * FROM users WHERE user_id = ? FOR UPDATE',
+            'SELECT user_id, email, password_hash, role, first_name, last_name, created_at, updated_at, deleted_at FROM users WHERE user_id = ? AND deleted_at IS NULL FOR UPDATE',
             [userId]
         );
 
         if (existingUserRows.length === 0) {
              await connection.rollback();
-             throw new ServiceErorr(`User with ID ${userId} not found.`, 404);
+             // Check if user exists but is deleted
+             const [deletedCheck] = await connection.execute<RowDataPacket[]>('SELECT user_id FROM users WHERE user_id = ?', [userId]);
+             if (deletedCheck.length > 0) {
+                 throw new ServiceErorr(`User with ID ${userId} has been deleted and cannot be updated.`, 404);
+             } else {
+                 throw new ServiceErorr(`User with ID ${userId} not found.`, 404);
+             }
         }
         const existingUser = existingUserRows[0] as Users;
 
-        // --- Prepare update ---
-        const updates: string[] = []; 
-        const values: any[] = [];   
-        let requiresUpdate = false;  
+        const updates: string[] = [];
+        const values: (string | number | null | Date | Role)[] = []; // Type the values array
+        let requiresUpdate = false;
 
-        // Email: Check if provided, different, and unique if changing
-        if (user.email !== undefined && user.email !== existingUser.email) {
+        if (userUpdateData.email !== undefined && userUpdateData.email !== existingUser.email) {
             const [existingEmailCheck] = await connection.execute<RowDataPacket[]>(
-                'SELECT user_id FROM users WHERE email = ? AND user_id != ?',
-                [user.email, userId]
+                'SELECT user_id FROM users WHERE email = ? AND user_id != ? AND deleted_at IS NULL',
+                [userUpdateData.email, userId]
             );
             if (existingEmailCheck.length > 0) {
                 await connection.rollback();
-                throw new ServiceErorr(`Email ${user.email} is already in use.`, 409); // 409 Conflict
+                throw new ServiceErorr(`Email ${userUpdateData.email} is already in use by another active user.`, 409); // 409 Conflict
             }
-            // Add email to the update list
             updates.push('email = ?');
-            values.push(user.email);
+            values.push(userUpdateData.email);
             requiresUpdate = true;
         }
 
-        // Password: Add if provided
-        if (user.password_hash !== undefined) {
+        // Password: Add if provided (Hashing should happen in controller/before calling service)
+        if (userUpdateData.password_hash !== undefined) {
+             // Basic check: ensure it's not empty if provided
+             if (!userUpdateData.password_hash) {
+                 await connection.rollback();
+                 throw new ServiceErorr('Password cannot be empty.', 400);
+             }
             updates.push('password_hash = ?');
-            values.push(user.password_hash);
-            requiresUpdate = true; 
+            values.push(userUpdateData.password_hash); // Assume already hashed
+            requiresUpdate = true;
         }
 
-        // First Name: Add if provided AND different from current
-        if (user.first_name !== undefined && user.first_name !== existingUser.first_name) {
+        // Role: Add if provided AND different from current
+        if (userUpdateData.role !== undefined && userUpdateData.role !== existingUser.role) {
+             // Add validation if needed (e.g., only admins can change roles) - This logic belongs more in the controller/middleware layer
+            updates.push('role = ?');
+            values.push(userUpdateData.role); // Use the Role enum value
+            requiresUpdate = true;
+        }
+
+
+        // First Name: Add if provided AND different from current (handle null)
+        if (userUpdateData.first_name !== undefined && userUpdateData.first_name !== existingUser.first_name) {
             updates.push('first_name = ?');
-            values.push(user.first_name);
+            values.push(userUpdateData.first_name);
             requiresUpdate = true;
         }
 
-        // Last Name: Add if provided AND different from current
-        if (user.last_name !== undefined && user.last_name !== existingUser.last_name) {
+        // Last Name: Add if provided AND different from current (handle null)
+        if (userUpdateData.last_name !== undefined && userUpdateData.last_name !== existingUser.last_name) {
             updates.push('last_name = ?');
-            values.push(user.last_name);
+            values.push(userUpdateData.last_name);
             requiresUpdate = true;
         }
 
-        let updatedUserData : Users; 
+        // --- Execute update if needed ---
+        let updatedUserData : Users;
 
         if (requiresUpdate) {
-             if (updates.length === 0) {
-                  await connection.rollback();
-                  console.error("Internal logic error: requiresUpdate is true, but updates array is empty.");
-                  throw new ServiceErorr("Internal server error during update.", 500);
-             }
+             // Add updated_at automatically (DB might handle this, but explicit is fine)
+             updates.push('updated_at = NOW()');
+             // Add the userId for the WHERE clause
+             values.push(userId);
 
-            values.push(userId); 
-
-            const sql = `UPDATE users SET ${updates.join(', ')} WHERE user_id = ?`;
+            const sql = `UPDATE users SET ${updates.join(', ')} WHERE user_id = ? AND deleted_at IS NULL`;
             const [result] = await connection.execute<ResultSetHeader>(sql, values);
 
             if (result.affectedRows === 0) {
+                 // This could happen if the user was deleted between the SELECT FOR UPDATE and the UPDATE
                  await connection.rollback();
-                 console.warn(`User ${userId} update failed unexpectedly (0 rows affected).`);
-                 throw new ServiceErorr(`Failed to update user ${userId} (unexpectedly).`, 500);
+                 console.warn(`User ${userId} update affected 0 rows. User might have been deleted concurrently.`);
+                 // Check again if the user exists to give a more specific error
+                 const [checkAgain] = await connection.execute<RowDataPacket[]>('SELECT deleted_at FROM users WHERE user_id = ?', [userId]);
+                 if (checkAgain.length === 0) {
+                     throw new ServiceErorr(`User with ID ${userId} not found (possibly deleted during update).`, 404);
+                 } else if (checkAgain[0].deleted_at !== null) {
+                     throw new ServiceErorr(`User with ID ${userId} was deleted during the update process.`, 409); // Conflict
+                 } else {
+                     throw new ServiceErorr(`Failed to update user ${userId}. Update affected 0 rows unexpectedly.`, 500);
+                 }
             }
 
+             // Re-fetch the updated user data to return the complete, current state
              const [refetchedRows] = await connection.execute<RowDataPacket[]>(
-                 'SELECT * FROM users WHERE user_id = ?', [userId]
+                 'SELECT user_id, email, password_hash, role, first_name, last_name, created_at, updated_at, deleted_at FROM users WHERE user_id = ?', [userId]
              );
              if (refetchedRows.length === 0) { // Should not happen if update succeeded
                   await connection.rollback();
-                  throw new ServiceErorr(`User ${userId} not found after update.`, 500);
+                  throw new ServiceErorr(`User ${userId} could not be found immediately after successful update.`, 500);
              }
              updatedUserData = refetchedRows[0] as Users;
 
         } else {
-             console.log(`No actual field changes for user ${userId}. Skipping UPDATE.`);
-             updatedUserData = existingUser; // Use the data we already fetched
+             console.log(`No actual field changes detected for user ${userId}. Skipping UPDATE query.`);
+             updatedUserData = existingUser; // Return the data we already fetched
         }
 
         await connection.commit();
-
         return updatedUserData;
 
     } catch (error: unknown) {
@@ -199,17 +268,19 @@ export const updateUser = async (userId: number, user: UpdateUserInput): Promise
             try {
                 await connection.rollback();
             } catch (rollbackError) {
-                console.error(`Failed to rollback transaction:`, rollbackError);
+                console.error(`Failed to rollback transaction during user update for ${userId}:`, rollbackError);
             }
         }
 
-        console.error(`Error updating user ${userId}:`, error); 
+        console.error(`Error updating user ${userId}:`, error);
 
         if (error instanceof ServiceErorr) {
-            throw error;
+            throw error; // Re-throw known service errors
         }
+         // Log unexpected errors before throwing a generic one
          if (error instanceof Error) {
-             throw new ServiceErorr(`Failed to update user ${userId}: ${error.message}`, 500);
+             console.error("Unexpected Error Details:", error.message, error.stack);
+             throw new ServiceErorr(`Failed to update user ${userId} due to an internal error.`, 500);
         }
         throw new ServiceErorr(`An unknown error occurred while updating user ${userId}.`, 500);
 
@@ -220,8 +291,7 @@ export const updateUser = async (userId: number, user: UpdateUserInput): Promise
     }
 }
 
-// we use a soft deletion method were we update the users deleted_at timestamp because of forgien key constraints 
-
+// we use a soft deletion method were we update the users deleted_at timestamp because of forgien key constraints
 export const deleteUser = async (userId: number): Promise<void> => {
     let connection: PoolConnection | undefined;
 
