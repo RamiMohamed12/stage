@@ -5,48 +5,39 @@ import { hashPassword, comparePassword } from '../utils/passwordUtils'; // Impor
 import { generateToken, JwtPayload } from '../utils/jwtUtils'; // Import JWT utility and payload type
 import { Role, Users, CreateUserInput, UpdateUserInput } from '../models/Users'; // Import models and types
 
-// Controller for user signup
 export const signupUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { email, password, first_name, last_name, role } = req.body as CreateUserInput & { password?: string }; // Get validated data
+        const { email, password, first_name, last_name } = req.body;
 
-        // Ensure password is provided for signup
         if (!password) {
             res.status(400).json({ message: 'Password is required for signup.' });
-            return; // Add return
+            return;
         }
 
-        // Hash the password before sending to service
         const password_hash = await hashPassword(password);
 
-        // Prepare user data for the service (excluding plain password)
         const userData: CreateUserInput = {
             email,
-            password_hash, // Use the hashed password
+            password_hash,
             first_name,
             last_name,
-            role // Role is optional, service defaults to USER
+            role: Role.USER  // Explicitly set role to USER
         };
 
         const newUser = await usersService.createUser(userData);
 
-        // Exclude password hash from the response
         const { password_hash: _, ...userResponse } = newUser;
         res.status(201).json(userResponse);
-        // No return needed here (end of try block)
 
     } catch (error: unknown) {
         if (error instanceof ServiceErorr) {
             res.status(error.statusCode).json({ message: error.message });
-            // No return needed here (end of catch block path)
         } else if (error instanceof Error) {
             console.error("Signup Error:", error);
             res.status(500).json({ message: "An internal error occurred during signup.", error: error.message });
-             // No return needed here
         } else {
             console.error("Signup Error (Unknown):", error);
             res.status(500).json({ message: "An unknown internal error occurred during signup." });
-             // No return needed here
         }
     }
 };

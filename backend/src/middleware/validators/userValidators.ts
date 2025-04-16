@@ -19,8 +19,9 @@ export const validateSignup = [
         .trim()
         .escape(), // Prevent HTML/script injection
     body('role')
-        .optional() // Role is optional during signup (defaults to USER in service)
-        .isIn(Object.values(Role)).withMessage(`Invalid role. Must be one of: ${Object.values(Role).join(', ')}`)
+    .not()
+    .exists()
+    .withMessage('Role cannot be specified during signup'),
 ];
 
 // Validation rules for user login

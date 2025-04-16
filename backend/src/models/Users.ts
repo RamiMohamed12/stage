@@ -1,28 +1,32 @@
-// we declare the role as enums 
-export enum Role { 
+import { RowDataPacket } from 'mysql2';
+
+export enum Role {
     USER = 'user',
-    ADMIN = 'admin',
+    ADMIN = 'admin'
 }
 
-// we declare the Users interface here
-export interface Users { 
-
-    user_id: number; 
-    email: string; 
-    password_hash: string; 
+interface BaseUser {
+    email: string;
+    password_hash: string;
     role: Role;
-    first_name: string;
-    last_name: string;
-    created_at: string | Date;
-    updated_at: string | Date;
-    deleted_at: string | Date | null; // we use null for not deleted 
-    
+    first_name: string | null;
+    last_name: string | null;
 }
 
-// input type for creating a user
-export type CreateUserInput = Omit<Users, 'user_id' | 'created_at' | 'updated_at' | 'deleted_at'> & {
-    role?: Role; // Use Role enum, make optional if relying on DB default
+export interface Users extends BaseUser {
+    user_id: number;
+    created_at: Date;
+    updated_at: Date | null;
+    deleted_at: Date | null;
+}
+
+
+export interface UserRow extends Users, RowDataPacket {}
+
+
+export type CreateUserInput = Omit<BaseUser, 'role'> & {
+    role?: Role;
 };
 
-// input type for updating a user
-export type UpdateUserInput = Partial<Omit<Users, 'user_id' | 'created_at' | 'updated_at' | 'deleted_at'>>;
+
+export type UpdateUserInput = Partial<Omit<BaseUser, 'user_id'>>;
