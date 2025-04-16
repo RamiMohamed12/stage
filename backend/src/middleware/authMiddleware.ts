@@ -37,11 +37,9 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
         res.status(500).json({ message: 'Internal Server Error.' });
         return; // Add return;
     }
-    // No return needed here as all paths above return or call next() and return
 }
 
 export const checkRole = (allowedRoles: Role[]) => {
-    // Add explicit ': void' return type annotation here
     return (req: Request, res: Response, next: NextFunction): void => {
         try {
             // First check if user exists (should exist after authenticateToken)
@@ -68,12 +66,11 @@ export const checkRole = (allowedRoles: Role[]) => {
 
         } catch (error) {
             console.error('Error in role authorization middleware:', error);
-             // This return ends the function execution for this path
             res.status(500).json({
                 message: 'Internal Server Error'
             });
-            return; // Explicitly return after sending response
+            return; 
         }
-        // No return needed outside the try-catch if all paths inside handle it
+   
     };
 };
