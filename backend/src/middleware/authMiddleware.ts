@@ -1,6 +1,7 @@
 import {Request, Response, NextFunction} from 'express';
 import { verifyToken } from '../utils/jwtUtils';
 import {JwtPayload} from '../utils/jwtUtils';
+import {Role} from '../models/Users'; 
 
 declare global {
     namespace Express {
@@ -34,3 +35,30 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
 
 }
 
+export const checkRole = (allowedRoles: Role[]) => {
+    return (req: Request, res: Response, next: NextFunction) => {
+        try {
+            // First check if user exists (should exist after authenticateToken)
+            if (!req.user) {
+                return res.status(401).json({ 
+                    message: 'Unauthorized: Authentication required'
+                });
+            }
+
+            // Check if user's role is in the allowed roles array
+            if (!allowedRoles.includes(req.user.role)) {
+                return res.status(403).json({ 
+                    message: 'Forbidden: Insufficient permissions'
+                });
+            }
+
+            // User has an allowed role
+            next();
+        } catch (error) {
+            console.error('Error in role authorization middleware:', error);
+            return res.status(500).json({ 
+                message: 'Internal Server Error' 
+            });
+        }
+    };
+};
