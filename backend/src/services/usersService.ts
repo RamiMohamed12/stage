@@ -218,7 +218,6 @@ export const updateUser = async (userId: number, userUpdateData: UpdateUserInput
             requiresUpdate = true;
         }
 
-        // --- Execute update if needed ---
         let updatedUserData : Users;
 
         if (requiresUpdate) {
