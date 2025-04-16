@@ -31,4 +31,6 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
         console.error('Error in authentication middleware:', error);
         return res.status(500).json({ message: 'Internal Server Error.' });
     }
+
 }
+
