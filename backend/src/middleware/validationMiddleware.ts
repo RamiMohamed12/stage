@@ -1,15 +1,19 @@
 import { validationResult } from "express-validator";
 import { Request, Response, NextFunction } from "express";
 
-export const handleValidationErrors = (req: Request, res: Response, next: NextFunction) => {
+export const handleValidationErrors = (req: Request, res: Response, next: NextFunction): void => { // Add :void return type
     try {
-    const errors = validationResult(req);
-    if (errors.isEmpty()) {
-        return next(); // No validation errors, proceed to the next middleware
-        }   else { 
-            return res.status(400).json({errors: errors.array()}); // Return validation errors as JSON response
-        }
-    } catch (error){    
-        throw new Error('Internal Server Error: An error occurred while processing the request.');
+     const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({errors: errors.array()});
+      return; // Keep return;
     }
-}
+    next();
+    return; // Return after calling next()
+      } catch (error) {
+          console.error('Error in validation middleware:', error);
+          res.status(500).json({ message: 'Internal Server Error' });
+          return; // Add return;
+      }
+       // No return needed here as all paths above return or call next() and return
+};

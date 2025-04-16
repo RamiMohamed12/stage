@@ -1,30 +1,53 @@
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
-import pool from './config/db';
+import pool from './config/db'; // Assuming db config is here
 import dotenv from 'dotenv';
+
+// Import user routes
+import userRoutes from './routes/userRoutes'; // Adjust path if needed
+
 dotenv.config();
 
 const app: Express = express();
 const port = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors()); // Enable Cross-Origin Resource Sharing
+app.use(express.json()); // Parse incoming JSON requests
+app.use(express.urlencoded({ extended: true })); // Parse URL-encoded requests
 
-// Test route
+// --- Mount API Routes ---
+// All routes defined in userRoutes will be prefixed with /api/users
+app.use('/api/users', userRoutes);
+
+// Test route (optional, can be removed or kept for basic checks)
 app.get('/', async (req: Request, res: Response) => {
   try {
-    const [rows] = await pool.query('SELECT 1 as test');
-    res.json({ message: 'Server is running', dbTest: rows });
+    // Optional: Simple DB check
+    // const [rows] = await pool.query('SELECT 1 as test');
+    res.json({ message: 'API is running' }); // Simplified response
   } catch (error) {
-    res.status(500).json({ error: 'Database connection failed' });
+    console.error("Root route error:", error); // Log the error
+    res.status(500).json({ error: 'API is running, but encountered an issue.' });
   }
 });
+
+// Basic Error Handling Middleware (Optional but Recommended)
+// This should come after your routes
+app.use((err: any, req: Request, res: Response, next: express.NextFunction) => {
+  console.error("Unhandled Error:", err.stack || err);
+  res.status(err.status || 500).json({
+    message: err.message || 'Internal Server Error',
+    // Optionally include stack trace in development
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
 
 // Start server
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+  console.log(`User routes available at http://localhost:${port}/api/users`);
 });
 
-export default app;
+export default app; // Export app for potential testing frameworks

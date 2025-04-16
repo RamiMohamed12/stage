@@ -11,54 +11,69 @@ declare global {
     }
 }
 
-export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
+
+export const authenticateToken = (req: Request, res: Response, next: NextFunction): void => { // Add :void return type
 
     const headerAuth = req.headers['authorization'];
     try {
-        if( headerAuth && headerAuth.startsWith('Bearer ')) { 
-            const token = headerAuth.slice(7); 
-            const  payload =  verifyToken(token); 
+        if( headerAuth && headerAuth.startsWith('Bearer ')) {
+            const token = headerAuth.slice(7);
+            const payload = verifyToken(token);
             if(payload){
-                req.user = payload; // Attach the user to the request object
-                next(); 
+                req.user = payload; // Attach the user payload to the request object
+                next();
+                return; // Return after calling next()
             }
             else {
-                return res.status(401).json({ message: 'Unauthorized: Invalid or expired Token.' });
-            } 
-    } else { 
-        return res.status(401).json({ message: 'Unauthorized: Missing or invalid token format.' });
+                res.status(401).json({ message: 'Unauthorized: Invalid or expired Token.' });
+                return; // Add return;
+            }
+    } else {
+        res.status(401).json({ message: 'Unauthorized: Missing or invalid token format.' });
+        return; // Add return;
     }
   } catch (error){
         console.error('Error in authentication middleware:', error);
-        return res.status(500).json({ message: 'Internal Server Error.' });
+        res.status(500).json({ message: 'Internal Server Error.' });
+        return; // Add return;
     }
-
+    // No return needed here as all paths above return or call next() and return
 }
 
 export const checkRole = (allowedRoles: Role[]) => {
-    return (req: Request, res: Response, next: NextFunction) => {
+    // Add explicit ': void' return type annotation here
+    return (req: Request, res: Response, next: NextFunction): void => {
         try {
             // First check if user exists (should exist after authenticateToken)
             if (!req.user) {
-                return res.status(401).json({ 
+                // This return ends the function execution for this path
+                res.status(401).json({
                     message: 'Unauthorized: Authentication required'
                 });
+                return; // Explicitly return after sending response
             }
 
             // Check if user's role is in the allowed roles array
             if (!allowedRoles.includes(req.user.role)) {
-                return res.status(403).json({ 
+                 // This return ends the function execution for this path
+                res.status(403).json({
                     message: 'Forbidden: Insufficient permissions'
                 });
+                return; // Explicitly return after sending response
             }
 
-            // User has an allowed role
+            // User has an allowed role, pass control to the next middleware/handler
             next();
+            // Implicit void return here is correct
+
         } catch (error) {
             console.error('Error in role authorization middleware:', error);
-            return res.status(500).json({ 
-                message: 'Internal Server Error' 
+             // This return ends the function execution for this path
+            res.status(500).json({
+                message: 'Internal Server Error'
             });
+            return; // Explicitly return after sending response
         }
+        // No return needed outside the try-catch if all paths inside handle it
     };
 };
