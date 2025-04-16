@@ -28,4 +28,5 @@ pool.getConnection()
         process.exit(1); // exit the process with failure
     }); 
 
+
 export default pool; 
