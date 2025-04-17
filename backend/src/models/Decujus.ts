@@ -22,4 +22,4 @@ export type CreateDecujusInput = Omit<Decujus, 'decujus_id' | 'created_at' | 'up
 };
 
 // input type for updating a decujus
-export type UpdateDecujusInput = Partial<CreateDecujusInput>;
+export type UpdateDecujusInput = Partial<Omit<Decujus, 'decujus_id' | 'created_at' | 'updated_at'>>;
