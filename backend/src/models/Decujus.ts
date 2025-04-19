@@ -6,7 +6,6 @@ export interface Decujus {
     pension_number: string; 
     first_name: string | null; 
     last_name: string | null;
-    date_of_death: Date | null;
     date_of_birth: Date | null;
     agency: string | null;
     is_pension_active: boolean; 
