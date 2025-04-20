@@ -2,7 +2,8 @@ import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import pool from './config/db'; // Assuming db config is here
 import dotenv from 'dotenv';
-
+import decujusRoutes from './routes/decujusRoutes';
+import agencyRoutes from './routes/agencyRoutes'; 
 // Import user routes
 import userRoutes from './routes/userRoutes'; // Adjust path if needed
 
@@ -19,6 +20,8 @@ app.use(express.urlencoded({ extended: true })); // Parse URL-encoded requests
 // --- Mount API Routes ---
 // All routes defined in userRoutes will be prefixed with /api/users
 app.use('/api/users', userRoutes);
+app.use('/api/decujus', decujusRoutes);
+app.use('/api/agencies', agencyRoutes);
 
 // Test route (optional, can be removed or kept for basic checks)
 app.get('/', async (req: Request, res: Response) => {

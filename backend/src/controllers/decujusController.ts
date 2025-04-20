@@ -4,7 +4,7 @@ import { ServiceErorr } from '../services/usersService'; // Assuming ServiceErro
 
 export const handleVerifyDecujus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { pension_number, first_name, last_name, date_of_birth, agency } = req.body;
+        const { pension_number, first_name, last_name, date_of_birth, agency_id } = req.body;
 
         if (!pension_number) {
             res.status(400).json({ isValid: false, message: 'Pension number is required.' });
@@ -16,11 +16,15 @@ export const handleVerifyDecujus = async (req: Request, res: Response, next: Nex
             first_name: first_name || null,
             last_name: last_name || null,
             date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
-            agency: agency || null 
+            agency_id: agency_id ? parseInt(String(agency_id),10)  : null 
         };
 
+        if (agency_id && isNaN(verificationData.agency_id as number)) {
+            res.status(400).json({ isValid: false, message: 'Agency ID must be a number.' });
+            return;
+        }
+        
         const result = await decujusService.verifyDecujus(verificationData);
-
 
         if (result.isValid) {
             res.status(200).json(result);

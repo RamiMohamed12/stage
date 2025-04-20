@@ -8,7 +8,7 @@ interface VerifyDecujusInput {
     first_name: string | null;
     last_name: string | null;
     date_of_birth: Date | null;
-    agency: string | null; 
+    agency_id: number | null; 
 }
 
 interface VerifyDecujusResult {
@@ -61,12 +61,12 @@ export const verifyDecujus = async (input: VerifyDecujusInput): Promise<VerifyDe
              return { isValid: false, message: 'Date of birth does not match our records (expected no DOB).' };
         }
 
-        if (input.agency && decujus.agency &&
-            input.agency.toLowerCase() !== decujus.agency.toLowerCase()) {
+        if (input.agency_id && decujus.agency &&
+            input.agency_id !== decujus.agency_id) {
             return { isValid: false, message: 'Agency does not match our records.' };
         }
         // Handle case where input provides an agency but DB has null
-        if (input.agency && !decujus.agency) {
+        if (input.agency_id && !decujus.agency_id) {
              return { isValid: false, message: 'Agency does not match our records (expected no agency).' };
         }
       
@@ -77,7 +77,7 @@ export const verifyDecujus = async (input: VerifyDecujusInput): Promise<VerifyDe
                 first_name: decujus.first_name,
                 last_name: decujus.last_name,
                 date_of_birth: decujus.date_of_birth,
-                agency: decujus.agency,
+                agency_id: decujus.agency,
                 is_pension_active: decujus.is_pension_active
             }
         };
