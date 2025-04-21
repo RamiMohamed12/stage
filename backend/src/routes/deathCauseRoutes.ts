@@ -1,14 +1,16 @@
 import express from 'express';
-import { handleGetAllAgencies } from '../controllers/agencyController';
+import { handleGetAllDeathCauses } from '../controllers/deathCauseController';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 import { authenticateToken } from '../middleware/authMiddleware'; // Import the authentication middleware
+
 const router = express.Router();
 
 router.get(
     '/',
     authenticateToken, 
     handleValidationErrors,
-    handleGetAllAgencies
+    handleGetAllDeathCauses
 );
 
 export default router;
+

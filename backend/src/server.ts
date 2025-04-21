@@ -6,6 +6,7 @@ import decujusRoutes from './routes/decujusRoutes';
 import agencyRoutes from './routes/agencyRoutes'; 
 // Import user routes
 import userRoutes from './routes/userRoutes'; // Adjust path if needed
+import deathCauseRoutes from './routes/deathCauseRoutes'; // Import death cause routes
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ app.use(express.urlencoded({ extended: true })); // Parse URL-encoded requests
 
 // --- Mount API Routes ---
 // All routes defined in userRoutes will be prefixed with /api/users
+app.use('/api/death-causes', deathCauseRoutes); // Adjust path if needed
 app.use('/api/users', userRoutes);
 app.use('/api/decujus', decujusRoutes);
 app.use('/api/agencies', agencyRoutes);
