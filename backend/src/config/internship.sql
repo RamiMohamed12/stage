@@ -40,6 +40,31 @@ INSERT INTO `agencies` VALUES (1,'Adrar'),(2,'Chlef'),(3,'Laghouat'),(4,'Oum El 
 UNLOCK TABLES;
 
 --
+-- Table structure for table `death_causes`
+--
+
+DROP TABLE IF EXISTS `death_causes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `death_causes` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `cause_name` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `cause_name` (`cause_name`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `death_causes`
+--
+
+LOCK TABLES `death_causes` WRITE;
+/*!40000 ALTER TABLE `death_causes` DISABLE KEYS */;
+INSERT INTO `death_causes` VALUES (3,'National Tragedy Victim'),(1,'Natural Causes'),(5,'Other'),(2,'Terrorist Act'),(4,'Work Accident');
+/*!40000 ALTER TABLE `death_causes` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `declarations`
 --
 
@@ -50,6 +75,8 @@ CREATE TABLE `declarations` (
   `declaration_id` int unsigned NOT NULL AUTO_INCREMENT,
   `applicant_user_id` int unsigned NOT NULL,
   `decujus_pension_number` varchar(9) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `relationship_id` int unsigned NOT NULL,
+  `death_cause_id` int unsigned DEFAULT NULL,
   `declaration_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `status` enum('submitted','processing','approved','rejected','requires_info') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'submitted',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -58,6 +85,10 @@ CREATE TABLE `declarations` (
   KEY `fk_declarations_user_idx` (`applicant_user_id`),
   KEY `idx_decujus_pension_number` (`decujus_pension_number`),
   KEY `idx_status` (`status`),
+  KEY `fk_declaration_relationship` (`relationship_id`),
+  KEY `fk_declaration_death_cause` (`death_cause_id`),
+  CONSTRAINT `fk_declaration_death_cause` FOREIGN KEY (`death_cause_id`) REFERENCES `death_causes` (`id`),
+  CONSTRAINT `fk_declaration_relationship` FOREIGN KEY (`relationship_id`) REFERENCES `relationships` (`id`),
   CONSTRAINT `fk_declarations_user` FOREIGN KEY (`applicant_user_id`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -137,6 +168,31 @@ LOCK TABLES `documents` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `relationships`
+--
+
+DROP TABLE IF EXISTS `relationships`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `relationships` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `description` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `description` (`description`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `relationships`
+--
+
+LOCK TABLES `relationships` WRITE;
+/*!40000 ALTER TABLE `relationships` DISABLE KEYS */;
+INSERT INTO `relationships` VALUES (4,'Adult Child (Female)'),(3,'Adult Child (Male)'),(6,'Ascendant (Female)'),(5,'Ascendant (Male)'),(2,'Spouse (Female)'),(1,'Spouse (Male)');
+/*!40000 ALTER TABLE `relationships` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `users`
 --
 
@@ -179,4 +235,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-04-20 23:10:25
+-- Dump completed on 2025-04-22  2:28:24
