@@ -4,6 +4,7 @@ import pool from './config/db'; // Assuming db config is here
 import dotenv from 'dotenv';
 import decujusRoutes from './routes/decujusRoutes';
 import agencyRoutes from './routes/agencyRoutes'; 
+import relationshipRoutes from './routes/relationshipRoutes'; // Import relationship routes
 // Import user routes
 import userRoutes from './routes/userRoutes'; // Adjust path if needed
 import deathCauseRoutes from './routes/deathCauseRoutes'; // Import death cause routes
@@ -24,7 +25,7 @@ app.use('/api/death-causes', deathCauseRoutes); // Adjust path if needed
 app.use('/api/users', userRoutes);
 app.use('/api/decujus', decujusRoutes);
 app.use('/api/agencies', agencyRoutes);
-
+app.use('/api/relationship', relationshipRoutes); 
 // Test route (optional, can be removed or kept for basic checks)
 app.get('/', async (req: Request, res: Response) => {
   try {
@@ -53,6 +54,10 @@ app.use((err: any, req: Request, res: Response, next: express.NextFunction) => {
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
   console.log(`User routes available at http://localhost:${port}/api/users`);
+  console.log(`Decujus routes available at http://localhost:${port}/api/decujus`);
+  console.log(`Agencies routes available at http://localhost:${port}/api/agencies`);
+  console.log(`Relationship routes available at http://localhost:${port}/api/relationship`);
+  console.log(`Death causes routes available at http://localhost:${port}/api/death-causes`);
 });
 
 export default app; // Export app for potential testing frameworks
