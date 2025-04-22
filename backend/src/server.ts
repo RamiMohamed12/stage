@@ -52,12 +52,15 @@ app.use((err: any, req: Request, res: Response, next: express.NextFunction) => {
 
 // Start server
 app.listen(port, () => {
+  console.log(`Database connection established successfully.`);
+  console.log(`\n`); 
   console.log(`Server is running on port ${port}`);
+  console.log(`\n`); 
   console.log(`User routes available at http://localhost:${port}/api/users`);
   console.log(`Decujus routes available at http://localhost:${port}/api/decujus`);
   console.log(`Agencies routes available at http://localhost:${port}/api/agencies`);
   console.log(`Relationship routes available at http://localhost:${port}/api/relationship`);
-  console.log(`Death causes routes available at http://localhost:${port}/api/death-causes`);
+  console.log(`Death causes routes available at http://localhost:${port}/api/death-causes`); 
 });
 
 export default app; // Export app for potential testing frameworks

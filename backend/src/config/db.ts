@@ -18,15 +18,15 @@ const pool = mysql.createPool({
 });  
 
 // this is just a test to see if the connection is working
-pool.getConnection() 
-    .then(connection => {
-        console.log("Connected to the database"); 
-        connection.release(); // release the connection back to the pool
-    })
-    .catch(err => {
-        console.log("Error connecting to the database: ", err);
-        process.exit(1); // exit the process with failure
-    }); 
+//pool.getConnection() 
+ //   .then(connection => {
+  //      console.log("Connected to the database"); 
+   //     connection.release(); // release the connection back to the pool
+   // })
+   // .catch(err => {
+    //    console.log("Error connecting to the database: ", err);
+     //   process.exit(1); // exit the process with failure
+  //  }); 
 
 
 export default pool; 
