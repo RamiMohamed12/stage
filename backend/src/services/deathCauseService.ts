@@ -24,5 +24,4 @@ export const getAllDeathCauses = async (): Promise<DeathCause[]> => {
             connection.release(); 
         }
     }   
-
 }

@@ -10,7 +10,7 @@ export const getAllAgencies = async (): Promise<Agency[]> => {
     let connection: PoolConnection | undefined; 
     try{
         connection = await pool.getConnection();
-        const sql = 'SELECT * FROM agency';
+        const sql = 'SELECT * FROM agencies ORDER BY name_agency ASC';
         const [rows] = await connection.query<RowDataPacket[]>(sql);
         if (rows.length === 0){
             throw new ServiceErorr('No agencies found in the database.', 404);
