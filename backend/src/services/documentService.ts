@@ -29,7 +29,7 @@ export const getRequiredDocumentsForRelationship= async (relationshipId: number)
             WHERE rrd.relationship_id = ?;
         `;
         
-        interface RqquiredDocumentRow extends RowDataPacket { 
+        interface RequiredDocumentRow extends RowDataPacket { 
             document_type_id: number;
             name: string;
             description: string | null;
@@ -40,14 +40,14 @@ export const getRequiredDocumentsForRelationship= async (relationshipId: number)
         const [rows] = await connection.query<RowDataPacket[]>(sql, [relationshipId]);
         
         if (rows.length === 0) {
-            throw new ServiceErorr('No required documents found for the specified relationship.', 404);
+            return []; // No required documents found for the given relationship
         }
-                const requiredDocuments: RequiredDocumentInfo[] = rows.map((row: any) => ({
+        const requiredDocuments: RequiredDocumentInfo[] = (rows as RequiredDocumentRow[]).map((row) => ({
             document_type_id: row.document_type_id,
             name: row.name,
             description: row.description, 
-            is_mandatory: row.is_mandatory === 1
-        }));
+            is_mandatory: row.is_mandatory === 1 // Correct conversion
+        })); 
         return requiredDocuments;
 
     } catch (error: any) {
@@ -62,6 +62,7 @@ export const getRequiredDocumentsForRelationship= async (relationshipId: number)
             connection.release();
         }
     }
-
 } 
+
+
 
