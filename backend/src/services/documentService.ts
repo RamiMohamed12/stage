@@ -64,5 +64,45 @@ export const getRequiredDocumentsForRelationship= async (relationshipId: number)
     }
 } 
 
+export const createInitialDeclarationDocumentRecords = async (decalarationId: number, relationshipId: number): Promise<void> => {
+    
+    let connection: PoolConnection | undefined;
+    const requiredDocuments = await getRequiredDocumentsForRelationship(relationshipId);
+    if (!requiredDocuments || requiredDocuments.length === 0) {
+        return; 
+    } 
 
+    try { 
+   
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
 
+    const sql = ` INSERT INTO declaration_documents (declaration_id, document_type_id, status) VALUES (?, ?, 'pending'); ` 
+    
+    for (const document of requiredDocuments) {
+        const { document_type_id } = document; 
+        await connection.execute(sql, [decalarationId, document_type_id]);    
+    }
+
+    if (requiredDocuments.length === 0 ){
+        throw new ServiceErorr('No required documents found for the given relationship.', 404);
+    }
+
+    await connection.commit();
+
+    } catch (error: any) {
+        console.error('Error creating initial declaration document records:', error.message);
+        if (connection) {
+            await connection.rollback();
+        }
+        if (error instanceof ServiceErorr) {
+            throw error; // Rethrow known errors
+        }
+        throw new ServiceErorr('Error creating initial declaration document records.', 500);
+    }
+    finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+}
