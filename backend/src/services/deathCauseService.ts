@@ -9,7 +9,7 @@ export const getAllDeathCauses = async (): Promise<DeathCause[]> => {
     try { 
 
         connection = await pool.getConnection(); 
-        const sql = 'SELECT * FROM death_cause'; 
+        const sql = 'SELECT * FROM death_causes'; 
         const [rows]= await connection.query<RowDataPacket[]>(sql);
         if (rows.length === 0) {
             throw new ServiceErorr('No death causes found in the database.', 404); 
@@ -24,4 +24,4 @@ export const getAllDeathCauses = async (): Promise<DeathCause[]> => {
             connection.release(); 
         }
     }   
-}
+} 
