@@ -26,7 +26,10 @@ export type CreateDeclarationInput = Omit<Declarations, 'declaration_id' | 'crea
     applicant_user_id: number;
     decujus_pension_number: string | null;
     relationship_id: number;
-    death_cause_id?: number | null; // Optional on input?
+    death_cause_id: number | null; // Optional on input?
+    declaration_date: Date; 
+    status: Status; 
+
 };
 
 // this is the input type for updating a declaration
