@@ -9,8 +9,9 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "typeRoots": ["./node_modules/@types", "./src/types"] // Added typeRoots
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "src/types"], // Ensure src/types is included
   "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts"]
 }

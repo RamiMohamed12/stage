@@ -278,3 +278,31 @@ export const checkAllMandatoryDocumentsVerified = async (declarationId: number):
         }
     }
 }
+
+export const getApplicantUserIdForDeclarationDocument = async (declarationDocumentId: number): Promise<number | null> => {
+    
+    let connection: PoolConnection | undefined; 
+    try { 
+        connection = await pool.getConnection(); 
+        const sql = `
+            SELECT d.applicant_user_id
+            FROM declaration_documents dd
+            JOIN declarations d ON dd.declaration_id = d.declaration_id
+            WHERE dd.declaration_document_id = ?;` 
+        const [rows] = await connection.query<RowDataPacket[]>(sql, [declarationDocumentId]);
+        if (rows.length === 0 ){ 
+            return null; 
+        }
+        return rows[0].applicant_user_id as number; 
+    } catch (error: any) {
+        console.error('Error fetching applicant user ID for declaration for declaration document: ', error.message);
+        if (!(error instanceof ServiceErorr)){ 
+            throw new ServiceErorr('Error fetching applicant user ID for declaration document.', 500); 
+        }
+    } finally { 
+        if (connection) {
+            connection.release(); 
+        }
+    }
+    return null; // Ensure all code paths return a value
+} 
