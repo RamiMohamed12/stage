@@ -53,3 +53,5 @@ router.get('/:declarationId/documents', authenticateToken, declarationController
 
 router.post('/:declarationDocumentId/upload', authenticateToken, upload.single('documentFile'), declarationController.handleUploadDeclarationDocument);
 
+export default router;
+
