@@ -2,7 +2,7 @@ import pool from '../config/db';
 // Import Agency model if you want to return the agency name
 import { Agency } from '../models/Agency'; 
 import {Decujus, DecujusRow} from '../models/Decujus';
-import { PoolConnection, RowDataPacket } from 'mysql2/promise';
+import { PoolConnection, RowDataPacket, ResultSetHeader } from 'mysql2/promise';
 import {ServiceErorr} from '../services/usersService';
 
 interface VerifyDecujusInput {
@@ -147,3 +147,35 @@ export const verifyDecujus = async (input: VerifyDecujusInput): Promise<VerifyDe
         }
     }
 }
+
+export const deactivatePension = async (pension_number: string, userId: number): Promise<void> => {
+    let connection: PoolConnection | undefined;
+    try {
+        connection = await pool.getConnection();
+        const updateSql = 'UPDATE decujus SET is_pension_active = 0 WHERE pension_number = ? AND is_pension_active = 1';
+        const [result] = await connection.query<ResultSetHeader>(updateSql, [pension_number]);
+
+        if (result.affectedRows === 0) {
+            const checkSql = 'SELECT is_pension_active FROM decujus WHERE pension_number = ?';
+            const [rows] = await connection.query<RowDataPacket[]>(checkSql, [pension_number]);
+
+            if (rows.length === 0) {
+                throw new ServiceErorr(`No decujus found with pension number ${pension_number}.`, 404);
+            }
+            if (rows[0].is_pension_active === 0 || rows[0].is_pension_active === false) {
+                return;
+            }
+            throw new ServiceErorr(`Failed to deactivate pension for ${pension_number}. Record found but update failed.`, 500);
+        }
+    } catch (error: any) {
+        if (error instanceof ServiceErorr) {
+            throw error;
+        }
+        console.error('Error deactivating pension:', error.message);
+        throw new ServiceErorr('An unexpected error occurred while deactivating the pension.', 500);
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+};

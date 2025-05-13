@@ -3,6 +3,8 @@ import {PoolConnection, RowDataPacket, ResultSetHeader} from 'mysql2/promise';
 import {ServiceErorr} from '../services/usersService';
 import { createInitialDeclarationDocumentRecords } from './documentService';
 import {CreateDeclarationInput, Declarations} from '../models/Declarations';
+import {Status as DeclarationStatus} from '../models/Declarations';
+import { Declaration } from 'typescript';
 
 export const createDeclaration = async (declaration: CreateDeclarationInput): Promise<Declarations> => {
     
@@ -89,3 +91,35 @@ export const getAllDeclarations = async (): Promise<Declarations[]> => {
     }
 }
 
+export const updateDeclarationStatus = async (
+    declarationId: number,
+    status: DeclarationStatus.APPROVED | DeclarationStatus.REJECTED,
+    adminId: number
+): Promise<void> => {
+    let connection: PoolConnection | undefined;
+    try {
+        connection = await pool.getConnection();
+        const sql = `UPDATE declarations SET status = ? WHERE declaration_id = ?`;
+        const [result] = await connection.query<ResultSetHeader>(sql, [status, declarationId]);
+
+        if (result.affectedRows === 0) {
+            const checkSql = `SELECT COUNT(*) as count FROM declarations WHERE declaration_id = ?`;
+            const [checkRows] = await connection.query<any[]>(checkSql, [declarationId]);
+            if (checkRows[0].count === 0) {
+                throw new ServiceErorr(`Declaration with ID ${declarationId} not found.`, 404);
+            }
+            throw new ServiceErorr(`Declaration with ID ${declarationId} not found or status already set to '${status}'.`, 404);
+        }
+    } catch (error) {
+        if (error instanceof ServiceErorr) {
+            throw error;
+        } else {
+            const err = error as any;
+            throw new ServiceErorr(`Failed to update declaration status: ${err.message || 'Unknown error'}`, 500);
+        }
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+}
