@@ -13,7 +13,7 @@ import adminRoutes from './routes/adminRoutes'; // Import admin routes
 dotenv.config();
 
 const app: Express = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT ? Number(process.env.PORT): 3000;
 
 // Middleware
 app.use(cors()); // Enable Cross-Origin Resource Sharing
@@ -51,7 +51,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => { // Ensu
 
 
 // Start server
-app.listen(port, () => {
+app.listen(port,'0.0.0.0', () => {
   // console.log(`Database connection established successfully.`); // Removed as DB connection is implicit
   console.log(`\n`);
   console.log(`Server is running on port ${port}`);
