@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/agency_service.dart'; // Ensure this path is correct
 import '../constants/colors.dart';
+import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AgencyScreen extends StatefulWidget {
   const AgencyScreen({super.key});
@@ -69,11 +71,24 @@ class _AgencyScreenState extends State<AgencyScreen> {
       appBar: AppBar(
         title: const Text('Sélectionner une agence'),
         backgroundColor: primaryColor,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Déconnexion',
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('jwt_token');
+              if (mounted) {
+                Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+              }
+            },
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(child: Lottie.asset('assets/lottie/loading_animation.json', width: 150, height: 150))
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
