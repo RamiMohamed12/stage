@@ -1,9 +1,8 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../constants/api_endpoints.dart';
 
 class AuthService {
-  static const String _baseUrl = 'http://192.168.125.17:3000/api/users';
-
   static Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
     final Map<String, dynamic> responseBody = json.decode(response.body);
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -16,7 +15,7 @@ class AuthService {
   static Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       final res = await http.post(
-        Uri.parse('$_baseUrl/login'),
+        Uri.parse('${ApiEndpoints.user}/login'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'email': email, 'password': password}),
       );
@@ -45,7 +44,7 @@ class AuthService {
       }
 
       final res = await http.post(
-        Uri.parse('$_baseUrl/signup'),
+        Uri.parse('${ApiEndpoints.user}/signup'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(body),
       );

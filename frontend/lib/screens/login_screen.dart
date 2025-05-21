@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../constants/colors.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,66 +38,99 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() { _loading = false; });
 
     if (result['success']) {
-      final token = result['data']['token']; // Assuming backend sends { "token": "..." }
+      final token = result['data']['token'];
       if (token != null && mounted) {
         Navigator.pushReplacementNamed(context, '/agencies', arguments: token);
       } else {
-         setState(() { _error = result['message'] ?? 'Login/Signup failed: No token received.'; });
+         setState(() { _error = result['message'] ?? 'Échec de la connexion/inscription : aucun jeton reçu.'; });
       }
     } else {
-      setState(() { _error = result['message'] ?? 'An unknown error occurred.'; });
+      setState(() { _error = result['message'] ?? 'Une erreur inconnue est survenue.'; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_isLogin ? 'Login' : 'Sign Up')),
+      appBar: AppBar(
+        title: Text(_isLogin ? 'Connexion' : 'Inscription'),
+        backgroundColor: primaryColor,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
-          child: SingleChildScrollView( // Added for scrollability if fields overflow
+          child: SingleChildScrollView(
             child: Column(
               children: [
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Email'),
+                  decoration: const InputDecoration(
+                    labelText: 'Adresse e-mail',
+                    labelStyle: TextStyle(color: subTitleColor),
+                  ),
                   keyboardType: TextInputType.emailAddress,
                   onSaved: (v) => _email = v ?? '',
-                  validator: (v) => v != null && v.contains('@') ? null : 'Enter a valid email',
+                  validator: (v) => v != null && v.contains('@') ? null : 'Veuillez entrer une adresse e-mail valide',
                 ),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Password'),
+                  decoration: const InputDecoration(
+                    labelText: 'Mot de passe',
+                    labelStyle: TextStyle(color: subTitleColor),
+                  ),
                   obscureText: true,
                   onSaved: (v) => _password = v ?? '',
-                  validator: (v) => v != null && v.length >= 6 ? null : 'Password must be at least 6 characters',
+                  validator: (v) => v != null && v.length >= 6 ? null : 'Le mot de passe doit contenir au moins 6 caractères',
                 ),
                 if (!_isLogin) ...[
                   TextFormField(
-                    decoration: const InputDecoration(labelText: 'First Name (Optional)'),
+                    decoration: const InputDecoration(
+                      labelText: 'Prénom',
+                      labelStyle: TextStyle(color: subTitleColor),
+                    ),
                     onSaved: (v) => _firstName = v ?? '',
+                    validator: (v) => v != null && v.trim().isNotEmpty ? null : 'Le prénom est requis',
                   ),
                   TextFormField(
-                    decoration: const InputDecoration(labelText: 'Last Name (Optional)'),
+                    decoration: const InputDecoration(
+                      labelText: 'Nom de famille',
+                      labelStyle: TextStyle(color: subTitleColor),
+                    ),
                     onSaved: (v) => _lastName = v ?? '',
+                    validator: (v) => v != null && v.trim().isNotEmpty ? null : 'Le nom de famille est requis',
                   ),
                 ],
                 const SizedBox(height: 20),
-                if (_error.isNotEmpty) Text(_error, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center,),
+                if (_error.isNotEmpty)
+                  Text(
+                    _error,
+                    style: TextStyle(color: errorColor),
+                    textAlign: TextAlign.center,
+                  ),
                 const SizedBox(height: 10),
-                if (_loading) const CircularProgressIndicator(),
+                if (_loading)
+                  const CircularProgressIndicator(),
                 if (!_loading)
-                  ElevatedButton(
-                    onPressed: _submit,
-                    child: Text(_isLogin ? 'Login' : 'Sign Up'),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: secondaryColor,
+                        foregroundColor: primaryColor,
+                      ),
+                      onPressed: _submit,
+                      child: Text(_isLogin ? 'Se connecter' : "S'inscrire"),
+                    ),
                   ),
                 TextButton(
                   onPressed: () => setState(() {
                     _isLogin = !_isLogin;
-                    _error = ''; // Clear error when switching modes
-                    _formKey.currentState?.reset(); // Reset form fields
+                    _error = '';
+                    _formKey.currentState?.reset();
                   }),
-                  child: Text(_isLogin ? 'No account? Sign Up' : 'Have an account? Login'),
+                  child: Text(
+                    _isLogin ? "Pas de compte ? Inscrivez-vous" : 'Vous avez déjà un compte ? Connectez-vous',
+                    style: TextStyle(color: primaryColor),
+                  ),
                 ),
               ],
             ),

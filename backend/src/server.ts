@@ -51,7 +51,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => { // Ensu
 
 
 // Start server
-app.listen(port,'0.0.0.0', () => {
+app.listen(port, '0.0.0.0', () => {
   // console.log(`Database connection established successfully.`); // Removed as DB connection is implicit
   console.log(`\n`);
   console.log(`Server is running on port ${port}`);
@@ -65,5 +65,4 @@ app.listen(port,'0.0.0.0', () => {
   console.log(`Admin routes available at http://localhost:${port}/api/admin`); // Added log
 });
 
-export default app; // Export app for potential testing frameworks
-//this is just a test
+export default app; 

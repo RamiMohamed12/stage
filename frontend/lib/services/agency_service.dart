@@ -1,10 +1,8 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../constants/api_endpoints.dart';
 
 class AgencyService {
-  // Adjust the base URL and endpoint to match your backend API
-  static const String _baseUrl = 'http://192.168.125.17:3000/api'; 
-
   // Helper function to handle HTTP responses (similar to AuthService)
   // This is a generic handler. If fetchAgencies returns a List directly at the root,
   // special handling might be needed or the screen adapts.
@@ -30,7 +28,7 @@ class AgencyService {
   static Future<Map<String, dynamic>> fetchAgencies(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/agencies'), // Ensure this is your correct endpoint for agencies
+        Uri.parse(ApiEndpoints.agencies), // Use the constant here
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token', // Assuming Bearer token authentication

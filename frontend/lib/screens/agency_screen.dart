@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/agency_service.dart'; // Ensure this path is correct
+import '../constants/colors.dart';
 
 class AgencyScreen extends StatefulWidget {
   const AgencyScreen({super.key});
@@ -10,7 +11,7 @@ class AgencyScreen extends StatefulWidget {
 class _AgencyScreenState extends State<AgencyScreen> {
   List<dynamic> _agencies = [];
   dynamic _selectedAgency;
-  String _status = 'Loading agencies...';
+  String _status = 'Chargement des agences...';
   bool _isLoading = true;
 
   @override
@@ -27,7 +28,7 @@ class _AgencyScreenState extends State<AgencyScreen> {
     if (token == null) {
       if (!mounted) return;
       setState(() {
-        _status = 'Error: Authentication token not found.';
+        _status = "Erreur : jeton d'authentification introuvable.";
         _isLoading = false;
       });
       return;
@@ -44,20 +45,20 @@ class _AgencyScreenState extends State<AgencyScreen> {
         final dynamic agencyData = result['data'];
         if (agencyData is List) {
           _agencies = agencyData;
-          _status = 'Fetched ${_agencies.length} agencies.';
+          _status = 'Nombre d\'agences récupérées : ${_agencies.length}.';
           if (_agencies.isEmpty) {
-            _status = 'No agencies found.';
+            _status = 'Aucune agence trouvée.';
           }
         } else {
           // Handle cases where agencyData is not a list, e.g. if it's a map containing the list
           // For example, if your backend returns { "agencies": [...] }
           // you might need: _agencies = agencyData['agencies'] as List<dynamic>? ?? [];
           _agencies = []; // Default to empty list if structure is unexpected
-          _status = 'Unexpected data format for agencies.';
-          print('Unexpected agency data format: $agencyData');
+          _status = 'Format de données inattendu pour les agences.';
+          print('Format de données inattendu pour les agences : $agencyData');
         }
       } else {
-        _status = 'Error: ${result['message']}';
+        _status = 'Erreur : ${result['message']}';
       }
     });
   }
@@ -65,7 +66,10 @@ class _AgencyScreenState extends State<AgencyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Select Agency')),
+      appBar: AppBar(
+        title: const Text('Sélectionner une agence'),
+        backgroundColor: primaryColor,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: _isLoading
@@ -73,18 +77,18 @@ class _AgencyScreenState extends State<AgencyScreen> {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_status),
+                  Text(_status, style: TextStyle(color: subTitleColor)),
                   const SizedBox(height: 20),
                   if (_agencies.isNotEmpty) ...[
-                    const Text('Select your agency:'),
+                    const Text('Sélectionnez votre agence :', style: TextStyle(color: subTitleColor)),
                     DropdownButton<dynamic>(
                       isExpanded: true,
                       value: _selectedAgency,
-                      hint: const Text('Choose an agency'),
+                      hint: const Text('Choisissez une agence', style: TextStyle(color: subTitleColor)),
                       items: _agencies.map<DropdownMenuItem<dynamic>>((agency) {
                         return DropdownMenuItem<dynamic>(
                           value: agency,
-                          child: Text(agency['name_agency'] ?? 'Unnamed Agency'),
+                          child: Text(agency['name_agency'] ?? 'Agence sans nom', style: TextStyle(color: primaryColor)),
                         );
                       }).toList(),
                       onChanged: (value) {
@@ -94,8 +98,7 @@ class _AgencyScreenState extends State<AgencyScreen> {
                     if (_selectedAgency != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 16.0),
-                        // Ensure agency_id exists or handle null
-                        child: Text('Selected: ${_selectedAgency['name_agency']} (ID: ${_selectedAgency['agency_id'] ?? 'N/A'})'),
+                        child: Text('Sélectionné : ${_selectedAgency['name_agency']} (ID : ${_selectedAgency['agency_id'] ?? 'N/A'})', style: TextStyle(color: primaryColor)),
                       ),
                   ],
                 ],
