@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/agency_service.dart'; // Ensure this path is correct
+import '../services/agency_service.dart';
 import '../constants/colors.dart';
-import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AgencyScreen extends StatefulWidget {
@@ -86,9 +85,13 @@ class _AgencyScreenState extends State<AgencyScreen> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _isLoading
-            ? Center(child: Lottie.asset('assets/lottie/loading_animation.json', width: 150, height: 150))
+        padding: const EdgeInsets.all(16),        child: _isLoading
+            ? Center(
+                child: CircularProgressIndicator(
+                  color: primaryColor,
+                  strokeWidth: 3,
+                ),
+              )
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
