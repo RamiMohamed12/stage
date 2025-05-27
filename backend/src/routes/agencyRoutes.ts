@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.get(
     '/',
-    authenticateToken, 
+    authenticateToken, // Added authentication middleware
     handleValidationErrors,
     handleGetAllAgencies
 );

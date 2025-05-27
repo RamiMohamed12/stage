@@ -1,35 +1,42 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../constants/api_endpoints.dart';
+import './token_service.dart'; // Import TokenService
 
 class AuthService {
+  final TokenService _tokenService = TokenService(); // Instantiate TokenService
+
   static Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
     final Map<String, dynamic> responseBody = json.decode(response.body);
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return {'success': true, 'data': responseBody};
     } else {
-      return {'success': false, 'message': responseBody['message'] ?? 'An unknown error occurred'};
+      return {'success': false, 'message': responseBody['message'] ?? 'An unknown error occurred', 'errors': responseBody['errors']};
     }
   }
 
-  static Future<Map<String, dynamic>> login(String email, String password) async {
+  Future<Map<String, dynamic>> login(String email, String password) async { // Made login non-static
     try {
       final res = await http.post(
         Uri.parse('${ApiEndpoints.user}/login'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'email': email, 'password': password}),
       );
-      return await _handleResponse(res);
+      final result = await _handleResponse(res);
+      if (result['success'] && result['data'] != null && result['data']['token'] != null) {
+        await _tokenService.saveToken(result['data']['token']);
+      }
+      return result;
     } catch (e) {
       return {'success': false, 'message': 'Network error: ${e.toString()}'};
     }
   }
 
-  static Future<Map<String, dynamic>> signup({
+  Future<Map<String, dynamic>> signup({ // Made signup non-static
     required String email,
     required String password,
-    String? firstName, // Optional, align with your backend's CreateUserInput
-    String? lastName,  // Optional, align with your backend's CreateUserInput
+    String? firstName,
+    String? lastName,
   }) async {
     try {
       final Map<String, dynamic> body = {
@@ -48,9 +55,18 @@ class AuthService {
         headers: {'Content-Type': 'application/json'},
         body: json.encode(body),
       );
-      return await _handleResponse(res);
+      final result = await _handleResponse(res);
+      if (result['success'] && result['data'] != null && result['data']['token'] != null) {
+        await _tokenService.saveToken(result['data']['token']);
+      }
+      return result;
     } catch (e) {
       return {'success': false, 'message': 'Network error: ${e.toString()}'};
     }
+  }
+
+  Future<void> logout() async {
+    await _tokenService.deleteToken();
+    // Potentially notify backend about logout if necessary
   }
 }

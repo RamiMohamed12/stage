@@ -1,49 +1,63 @@
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../constants/api_endpoints.dart';
+import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
+import '../models/agency.dart';
+import 'token_service.dart'; // Import TokenService
 
 class AgencyService {
-  // Helper function to handle HTTP responses (similar to AuthService)
-  // This is a generic handler. If fetchAgencies returns a List directly at the root,
-  // special handling might be needed or the screen adapts.
-  static Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
-    try {
-      final dynamic responseBody = json.decode(response.body);
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        // The 'data' field will hold whatever json.decode parsed (Map or List)
-        return {'success': true, 'data': responseBody};
-      } else {
-        // Assuming error responses are JSON objects with a 'message' field
-        if (responseBody is Map<String, dynamic>) {
-          return {'success': false, 'message': responseBody['message'] ?? 'An unknown error occurred'};
-        }
-        return {'success': false, 'message': 'Server error with non-JSON response: ${response.statusCode}'};
-      }
-    } catch (e) {
-      // This catch is for when json.decode fails or other parsing issues
-      return {'success': false, 'message': 'Error parsing server response: ${e.toString()}'};
-    }
-  }
+  final TokenService _tokenService = TokenService(); // Instantiate TokenService
 
-  static Future<Map<String, dynamic>> fetchAgencies(String token) async {
+  Future<List<Agency>> fetchAgencies() async {
+    final token = await _tokenService.getToken();
+    print('[AgencyService] Token from TokenService: $token'); // Log the token
+
+    if (token == null) {
+      print('[AgencyService] Token not found in storage.');
+      throw Exception('Token not found. Please login again.');
+    }
+
+    final url = Uri.parse('${ApiConfig.baseUrl}/agencies');
+    print('[AgencyService] Fetching agencies from: $url'); // Log URL
+    print('[AgencyService] Authorization Header: Bearer $token'); // Log header
+
+    http.Response response;
     try {
-      final response = await http.get(
-        Uri.parse(ApiEndpoints.agencies), // Use the constant here
+      response = await http.get(
+        url,
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token', // Assuming Bearer token authentication
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'Bearer $token',
         },
       );
-      // The _handleResponse will return a map like:
-      // {'success': true, 'data': <parsed_json_body_from_server>}
-      // or {'success': false, 'message': <error_message>}
-      // Your AgencyScreen expects result['data'] to be a List or it will show an error.
-      // Ensure your backend returns a JSON array for this endpoint, or an object
-      // that contains the array (e.g., {"agencies": [...]}) and adjust AgencyScreen if needed.
-      return await _handleResponse(response); 
     } catch (e) {
-      // Catch network errors or other exceptions during the request
-      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+      print('[AgencyService] HTTP request failed: $e');
+      throw Exception('Network error or server unreachable: ${e.toString()}');
+    }
+
+    print('[AgencyService] Response Status Code: ${response.statusCode}'); // Log status code
+    print('[AgencyService] Response Body: ${response.body}'); // Log response body
+
+    if (response.statusCode == 200) {
+      List<dynamic> body = jsonDecode(response.body);
+      List<Agency> agencies = body.map((dynamic item) => Agency.fromJson(item)).toList();
+      return agencies;
+    } else if (response.statusCode == 401 || response.statusCode == 403) {
+      print('[AgencyService] Authentication error: Status ${response.statusCode}');
+      throw Exception('Unauthorized: Invalid token or insufficient permissions. Server says: ${response.body}');
+    } else {
+      // Attempt to parse error message from response body
+      String errorMessage = 'Failed to load agencies. Status code: ${response.statusCode}';
+      try {
+        var decodedBody = jsonDecode(response.body);
+        if (decodedBody != null && decodedBody['message'] != null) {
+          errorMessage = decodedBody['message'];
+        }
+      } catch (e) {
+        // Ignore if body is not JSON or doesn't contain 'message'
+        print('[AgencyService] Could not parse error message from response body: $e');
+      }
+      print('[AgencyService] Failed to load agencies: Status ${response.statusCode}, Body: ${response.body}');
+      throw Exception(errorMessage);
     }
   }
 }

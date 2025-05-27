@@ -40,3 +40,27 @@ export const handleVerifyDecujus = async (req: Request, res: Response, next: Nex
         next(error); 
     }
 };
+
+export const handleVerifyDecujusByPensionNumber = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { pension_number } = req.params;
+
+        if (!pension_number) {
+            res.status(400).json({ message: 'Pension number is required.' });
+            return;
+        }
+
+        const decujus = await decujusService.verifyDecujusByPensionNumber(pension_number);
+
+        if (!decujus) {
+            res.status(404).json({ message: 'Decujus not found.' });
+            return;
+        }
+
+        res.status(200).json(decujus);
+    } catch (error) {
+        console.error('Controller error during decujus retrieval:', error);
+        
+        next(error); 
+    }
+}
