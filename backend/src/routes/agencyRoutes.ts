@@ -1,14 +1,28 @@
 import express from 'express';
-import { handleGetAllAgencies } from '../controllers/agencyController';
+import * as agencyController from '../controllers/agencyController';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 import { authenticateToken } from '../middleware/authMiddleware'; // Import the authentication middleware
 const router = express.Router();
 
 router.get(
     '/',
-    authenticateToken, // Added authentication middleware
+    authenticateToken,
     handleValidationErrors,
-    handleGetAllAgencies
+    agencyController.handleGetAllAgencies
 );
+
+router.get( 
+    '/:agencyId',
+    authenticateToken,
+    handleValidationErrors,
+    agencyController.handleGetAgencyNameById
+)
+
+router.get(
+    '/name/:agencyName',
+    authenticateToken,
+    handleValidationErrors,
+    agencyController.handleGetAgencyIdbyName
+); 
 
 export default router;

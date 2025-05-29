@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/screens/login_screen.dart';
+import 'package:frontend/screens/login_screen.dart'; // Make sure LoginScreen is imported
 import 'package:frontend/screens/agency_selection_screen.dart';
 import 'package:frontend/screens/signup_screen.dart';
-import 'package:frontend/screens/decujus_form_screen.dart';
 import 'package:frontend/screens/verification_result_screen.dart';
 import 'package:frontend/constants/colors.dart';
 
@@ -102,15 +101,15 @@ class MyApp extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
         ),
       ),
-      initialRoute: '/login',
+      // You can keep '/login' as the initial route, or change it to '/'
+      // since '/' will now also point to LoginScreen.
+      // For clarity, if LoginScreen is your absolute first screen, '/' is conventional.
+      initialRoute: '/', 
       routes: {
+        '/': (context) => const LoginScreen(), // Add this line to define the root route
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignupScreen(),
         '/agencySelection': (context) => const AgencySelectionScreen(),
-        '/decujusForm': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>; 
-          return DecujusFormScreen(routeArgs: args);
-        },
         '/verificationResult': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>; 
           return VerificationResultScreen(routeArgs: args);

@@ -3,6 +3,8 @@ import 'package:frontend/models/agency.dart';
 import 'package:frontend/services/agency_service.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/constants/colors.dart';
+import 'package:frontend/screens/decujus_verification_screen.dart';
+import 'package:frontend/widgets/loading_indicator.dart';
 
 class AgencySelectionScreen extends StatefulWidget {
   const AgencySelectionScreen({super.key});
@@ -73,15 +75,16 @@ class _AgencySelectionScreenState extends State<AgencySelectionScreen> {
     }
   }
 
-  void _navigateToDecujusForm() {
+  void _navigateToDecujusVerification() {
     if (_selectedAgency != null) {
-      Navigator.pushNamed(
+      Navigator.push(
         context,
-        '/decujusForm',
-        arguments: {
-          'agencyId': _selectedAgency!.agencyId,
-          'agencyName': _selectedAgency!.nameAgency,
-        },
+        MaterialPageRoute(
+          builder: (context) => DecujusVerificationScreen(
+            agencyId: _selectedAgency!.agencyId,
+            agencyName: _selectedAgency!.nameAgency,
+          ),
+        ),
       );
     } else {
       setState(() {
@@ -105,125 +108,121 @@ class _AgencySelectionScreenState extends State<AgencySelectionScreen> {
           ),
         ],
       ),
-      body: Container(
-        color: AppColors.bgLightColor,
-        padding: const EdgeInsets.all(20.0),
-        child: _isLoading
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(_fetchStatus, style: TextStyle(color: AppColors.subTitleColor, fontSize: 16)),
-                  ],
-                ),
-              )
-            : RefreshIndicator(
-                onRefresh: _fetchAgenciesData,
-                color: AppColors.primaryColor,
-                child: ListView(
-                  children: [
-                    if (_agencies.isNotEmpty) ...[
-                      Text(
-                        'Veuillez sélectionner votre agence de retraite:',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-                        decoration: BoxDecoration(
-                          color: AppColors.whiteColor,
-                          borderRadius: BorderRadius.circular(8.0),
-                          border: Border.all(color: AppColors.primaryColor.withOpacity(0.5)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.2),
-                              spreadRadius: 1,
-                              blurRadius: 3,
-                              offset: const Offset(0, 2),
+      body: Stack(
+        children: [
+          Container(
+            color: AppColors.bgLightColor,
+            padding: const EdgeInsets.all(20.0),
+            child: _isLoading
+                ? const SizedBox() // Empty container when loading, LoadingIndicator will be shown in Stack
+                : RefreshIndicator(
+                    onRefresh: _fetchAgenciesData,
+                    color: AppColors.primaryColor,
+                    child: ListView(
+                      children: [
+                        if (_agencies.isNotEmpty) ...[
+                          Text(
+                            'Veuillez sélectionner votre agence de retraite:',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryColor,
                             ),
-                          ],
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<Agency>(
-                            value: _selectedAgency,
-                            isExpanded: true,
-                            hint: Text('Choisissez une agence', style: TextStyle(color: AppColors.subTitleColor)),
-                            icon: Icon(Icons.arrow_drop_down_circle, color: AppColors.primaryColor),
-                            items: _agencies.map<DropdownMenuItem<Agency>>((Agency agency) {
-                              return DropdownMenuItem<Agency>(
-                                value: agency,
-                                child: Text(
-                                  agency.nameAgency,
-                                  style: TextStyle(color: AppColors.primaryColor, fontSize: 16),
+                          ),
+                          const SizedBox(height: 20),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+                            decoration: BoxDecoration(
+                              color: AppColors.whiteColor,
+                              borderRadius: BorderRadius.circular(8.0),
+                              border: Border.all(color: AppColors.primaryColor.withOpacity(0.5)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.2),
+                                  spreadRadius: 1,
+                                  blurRadius: 3,
+                                  offset: const Offset(0, 2),
                                 ),
-                              );
-                            }).toList(),
-                            onChanged: (Agency? newValue) {
-                              setState(() {
-                                _selectedAgency = newValue;
-                                _errorMessage = null;
-                              });
-                            },
-                            dropdownColor: AppColors.whiteColor,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 30),
-                      ElevatedButton(
-                        onPressed: _selectedAgency != null ? _navigateToDecujusForm : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryColor,
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          disabledBackgroundColor: AppColors.primaryColor.withOpacity(0.5),
-                        ),
-                        child: const Text('Continuer', style: TextStyle(color: AppColors.whiteColor)),
-                      ),
-                    ] else ...[
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.info_outline, color: AppColors.primaryColor, size: 50),
-                            const SizedBox(height: 10),
-                            Text(
-                              _fetchStatus,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: AppColors.subTitleColor, fontSize: 16),
+                              ],
                             ),
-                            const SizedBox(height: 20),
-                            ElevatedButton.icon(
-                                icon: const Icon(Icons.refresh, color: AppColors.whiteColor),
-                                label: const Text('Réessayer', style: TextStyle(color: AppColors.whiteColor)),
-                                onPressed: _fetchAgenciesData,
-                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryColor),
-                            )
-                          ],
-                        ),
-                      )
-                    ],
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: 20),
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.errorColor, fontSize: 16),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<Agency>(
+                                value: _selectedAgency,
+                                isExpanded: true,
+                                hint: Text('Choisissez une agence', style: TextStyle(color: AppColors.subTitleColor)),
+                                icon: Icon(Icons.arrow_drop_down_circle, color: AppColors.primaryColor),
+                                items: _agencies.map<DropdownMenuItem<Agency>>((Agency agency) {
+                                  return DropdownMenuItem<Agency>(
+                                    value: agency,
+                                    child: Text(
+                                      agency.nameAgency,
+                                      style: TextStyle(color: AppColors.primaryColor, fontSize: 16),
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (Agency? newValue) {
+                                  setState(() {
+                                    _selectedAgency = newValue;
+                                    _errorMessage = null;
+                                  });
+                                },
+                                dropdownColor: AppColors.whiteColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+                          ElevatedButton(
+                            onPressed: _selectedAgency != null ? _navigateToDecujusVerification : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryColor,
+                              padding: const EdgeInsets.symmetric(vertical: 15),
+                              textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8.0),
+                              ),
+                              disabledBackgroundColor: AppColors.primaryColor.withOpacity(0.5),
+                            ),
+                            child: const Text('Continuer', style: TextStyle(color: AppColors.whiteColor)),
+                          ),
+                        ] else ...[
+                          Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.info_outline, color: AppColors.primaryColor, size: 50),
+                                const SizedBox(height: 10),
+                                Text(
+                                  _fetchStatus,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: AppColors.subTitleColor, fontSize: 16),
+                                ),
+                                const SizedBox(height: 20),
+                                ElevatedButton.icon(
+                                    icon: const Icon(Icons.refresh, color: AppColors.whiteColor),
+                                    label: const Text('Réessayer', style: TextStyle(color: AppColors.whiteColor)),
+                                    onPressed: _fetchAgenciesData,
+                                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryColor),
+                                )
+                              ],
+                            ),
+                          )
+                        ],
+                        if (_errorMessage != null) ...[
+                          const SizedBox(height: 20),
+                          Text(
+                            _errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: AppColors.errorColor, fontSize: 16),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+          ),
+          // Loading Indicator Overlay
+          if (_isLoading)
+            const LoadingIndicator(),
+        ],
       ),
     );
   }

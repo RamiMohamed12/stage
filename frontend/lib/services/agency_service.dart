@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
+import '../constants/api_endpoints.dart'; 
 import '../models/agency.dart';
 import 'token_service.dart'; // Import TokenService
 
@@ -16,7 +16,7 @@ class AgencyService {
       throw Exception('Token not found. Please login again.');
     }
 
-    final url = Uri.parse('${ApiConfig.baseUrl}/agencies');
+    final url = Uri.parse('${ApiEndpoints.baseUrl}/agencies');
     print('[AgencyService] Fetching agencies from: $url'); // Log URL
     print('[AgencyService] Authorization Header: Bearer $token'); // Log header
 
