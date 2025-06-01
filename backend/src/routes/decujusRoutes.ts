@@ -1,5 +1,5 @@
 import express from 'express';
-import { handleVerifyDecujusByPensionNumber, handleVerifyDecujus } from '../controllers/decujusController';
+import { handleVerifyDecujusByPensionNumber, handleVerifyDecujus, handleGetDecujusByPensionAndAgency } from '../controllers/decujusController';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { validateDecujusVerificationInput } from '../middleware/validators/decujusValidators';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
@@ -20,6 +20,13 @@ router.get(
     '/:pension_number', 
     authenticateToken,
     handleVerifyDecujusByPensionNumber
+);
+
+// Route for fetching a decujus by pension number and agency ID (GET)
+router.get(
+    '/pension/:pension_number/agency/:agency_id',
+    authenticateToken,
+    handleGetDecujusByPensionAndAgency
 );
 
 export default router;

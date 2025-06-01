@@ -178,6 +178,38 @@ export const verifyDecujusByPensionNumber = async (pension_number: string): Prom
     }
 }
 
+export const getDecujusByPensionNumberAndAgencyId = async (pension_number: string, agency_id: number): Promise<Decujus | null> => {
+    let connection: PoolConnection | undefined;
+    try {
+        connection = await pool.getConnection();
+        const sql = 'SELECT * FROM decujus WHERE pension_number = ? AND agency_id = ?';
+        const [rows] = await connection.query<DecujusRow[]>(sql, [pension_number, agency_id]);
+
+        if (rows.length === 0) {
+            return null; 
+        }
+        const decujus = rows[0];
+        return {
+            decujus_id: decujus.decujus_id,
+            pension_number: decujus.pension_number,
+            first_name: decujus.first_name,
+            last_name: decujus.last_name,
+            date_of_birth: decujus.date_of_birth ? new Date(decujus.date_of_birth) : null,
+            agency_id: decujus.agency_id,
+            is_pension_active: typeof decujus.is_pension_active === 'number' ? decujus.is_pension_active === 1 : !!decujus.is_pension_active
+        } as Decujus;
+    } catch (error: any) {
+        console.error('Error retrieving decujus by pension number and agency ID:', error.message);
+        if (error instanceof ServiceErorr) {
+            throw error;
+        }
+        throw new ServiceErorr('Error retrieving decujus by pension number and agency ID: ' + error.message, 500);
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+};
 
 
 export const deactivatePension = async (pension_number: string, userId: number): Promise<void> => {

@@ -83,8 +83,10 @@ class _DecujusVerificationScreenState extends State<DecujusVerificationScreen>
     });
 
     try {
-      final result = await _decujusService.verifyDecujusByPensionNumber(
+      // Call the new service method that includes agencyId
+      final result = await _decujusService.verifyDecujusByPensionNumberAndAgencyId(
         _pensionNumberController.text.trim(),
+        widget.agencyId, // Pass the agencyId from the widget
       );
       
       if (!mounted) return;

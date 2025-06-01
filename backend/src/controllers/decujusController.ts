@@ -64,3 +64,36 @@ export const handleVerifyDecujusByPensionNumber = async (req: Request, res: Resp
         next(error); 
     }
 }
+
+export const handleGetDecujusByPensionAndAgency = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { pension_number, agency_id } = req.params;
+
+        if (!pension_number) {
+            res.status(400).json({ message: 'Pension number is required.' });
+            return;
+        }
+        if (!agency_id) {
+            res.status(400).json({ message: 'Agency ID is required.' });
+            return;
+        }
+
+        const agencyIdNumber = parseInt(agency_id, 10);
+        if (isNaN(agencyIdNumber)) {
+            res.status(400).json({ message: 'Agency ID must be a number.' });
+            return;
+        }
+
+        const decujus = await decujusService.getDecujusByPensionNumberAndAgencyId(pension_number, agencyIdNumber);
+
+        if (!decujus) {
+            res.status(404).json({ message: 'Decujus not found for the given pension number and agency ID.' });
+            return;
+        }
+
+        res.status(200).json(decujus);
+    } catch (error) {
+        console.error('Controller error during decujus retrieval by pension and agency:', error);
+        next(error);
+    }
+};

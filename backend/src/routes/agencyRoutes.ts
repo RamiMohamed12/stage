@@ -6,7 +6,6 @@ const router = express.Router();
 
 router.get(
     '/',
-    authenticateToken,
     handleValidationErrors,
     agencyController.handleGetAllAgencies
 );
