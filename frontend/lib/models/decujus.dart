@@ -5,6 +5,7 @@ class Decujus {
   final String lastName;
   final String dateOfBirth; // Keep as String, parse to DateTime in UI if needed
   final int agencyId;
+  final bool isPensionActive;
 
   Decujus({
     required this.id,
@@ -13,16 +14,18 @@ class Decujus {
     required this.lastName,
     required this.dateOfBirth,
     required this.agencyId,
+    required this.isPensionActive,
   });
 
   factory Decujus.fromJson(Map<String, dynamic> json) {
     return Decujus(
-      id: json['id'] as int,
+      id: json['decujus_id'] as int? ?? json['id'] as int, // Handle both 'id' and 'decujus_id'
       pensionNumber: json['pension_number'] as String,
-      firstName: json['first_name'] as String,
-      lastName: json['last_name'] as String,
-      dateOfBirth: json['date_of_birth'] as String,
+      firstName: json['first_name'] as String? ?? '', // Handle potential null
+      lastName: json['last_name'] as String? ?? '', // Handle potential null
+      dateOfBirth: json['date_of_birth'] as String? ?? '', // Handle potential null
       agencyId: json['agency_id'] as int,
+      isPensionActive: json['is_pension_active'] == 1 || json['is_pension_active'] == true, // Handle 0/1 or true/false
     );
   }
 
@@ -34,6 +37,7 @@ class Decujus {
       'last_name': lastName,
       'date_of_birth': dateOfBirth,
       'agency_id': agencyId,
+      'is_pension_active': isPensionActive,
     };
   }
 }

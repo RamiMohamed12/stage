@@ -43,6 +43,9 @@ const router = express.Router();
 // Middleware to authenticate token
 router.use(authenticateToken);
 
+// Add route to check for existing declarations
+router.get('/check/:pensionNumber', authenticateToken, declarationController.handleCheckDeclaration);
+
 router.post('/', authenticateToken, declarationController.handleCreateDeclaration);
 
 router.get('/',authenticateToken, declarationController.handleGetAllDeclarationsForUser);

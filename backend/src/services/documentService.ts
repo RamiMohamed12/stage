@@ -64,50 +64,67 @@ export const getRequiredDocumentsForRelationship= async (relationshipId: number)
     }
 } 
 
-export const createInitialDeclarationDocumentRecords = async (declarationId: number, relationshipId: number): Promise<void> => {
- 
-    let connection: PoolConnection | undefined;
-     
-
-    try { 
-   
+export const createInitialDeclarationDocumentRecords = async (
+    declarationId: number, 
+    relationshipId: number, 
+    existingConnection?: PoolConnection
+): Promise<void> => {
+    // First, get required documents outside of any transaction to minimize transaction time
     const requiredDocuments = await getRequiredDocumentsForRelationship(relationshipId);
 
     if (!requiredDocuments || requiredDocuments.length === 0) {
+        console.log(`No required documents found for relationship ${relationshipId}, skipping initial document creation for declaration ${declarationId}`);
         return; 
     }
 
-    connection = await pool.getConnection();
-    await connection.beginTransaction();
+    // Prepare batch insert data outside transaction
+    const values: (number | string)[] = [];
+    const sqlPlaceholders: string[] = [];
 
-    const sql = ` INSERT INTO declaration_documents (declaration_id, document_type_id, status) VALUES (?, ?, 'pending'); ` 
-    console.log(`Creating ${requiredDocuments.length} initial document records for declaration ${declarationId}`);
+    console.log(`Preparing ${requiredDocuments.length} initial document records for declaration ${declarationId}`);
 
     for (const document of requiredDocuments) {
-        const { document_type_id } = document; 
-        await connection.execute(sql, [declarationId, document_type_id]);    
+        sqlPlaceholders.push('(?, ?, \'pending\')');
+        values.push(declarationId, document.document_type_id);
     }
 
-    await connection.commit();
-    console.log(`Successfully created initial document records for declaration ${declarationId}`); 
+    if (sqlPlaceholders.length === 0) {
+        console.log(`No documents were prepared for batch insert for declaration ${declarationId}.`);
+        return;
+    }
 
-    } catch (error: any) {
-        console.error(`Error creating initial declaration document records for declaration ${declarationId}:`, error.message); // Log with declaration ID
-        if (connection) {
-            try {
-                 await connection.rollback();
-                 console.log(`Transaction rolled back for declaration ${declarationId}`); // Optional log
-            } catch (rollbackError: any) {
-                console.error(`Error rolling back transaction for declaration ${declarationId}:`, rollbackError.message);
-            }
+    const sql = `INSERT INTO declaration_documents (declaration_id, document_type_id, status) VALUES ${sqlPlaceholders.join(', ')};`;
+
+    let connection: PoolConnection | undefined;
+    let shouldReleaseConnection = false;
+    
+    try {
+        // Use existing connection if provided, otherwise get a new one
+        if (existingConnection) {
+            connection = existingConnection;
+        } else {
+            connection = await pool.getConnection();
+            shouldReleaseConnection = true;
+            // Set a shorter lock wait timeout for this specific operation
+            await connection.execute('SET SESSION innodb_lock_wait_timeout = 5');
         }
+        
+        // Use a simple execute - transaction is handled by the caller if existingConnection is provided
+        await connection.execute(sql, values);
+        
+        console.log(`Successfully created ${requiredDocuments.length} initial document records for declaration ${declarationId} in a batch.`); 
+        
+    } catch (error: any) {
+        console.error(`Error creating initial declaration document records for declaration ${declarationId}:`, error.message);
+        
         if (error instanceof ServiceErorr) {
             throw error; 
         }
         throw new ServiceErorr('Error creating initial declaration document records.', 500);
-    }
-    finally {
-        if (connection) {
+        
+    } finally {
+        // Only release connection if we created it ourselves
+        if (connection && shouldReleaseConnection) {
             connection.release();
         }
     }
@@ -305,4 +322,4 @@ export const getApplicantUserIdForDeclarationDocument = async (declarationDocume
         }
     }
     return null; // Ensure all code paths return a value
-} 
+}

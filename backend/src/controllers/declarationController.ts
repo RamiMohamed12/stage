@@ -6,13 +6,61 @@ import {RowDataPacket} from 'mysql2/promise';
 import {ServiceErorr} from '../services/usersService';
 
 
+export const handleCheckDeclaration = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const userId = (req as any).user.userId;
+        const pensionNumber = req.params.pensionNumber;
+
+        if (!pensionNumber) {
+            res.status(400).json({ message: 'Pension number is required' });
+            return;
+        }
+
+        const checkResult = await declarationService.checkExistingDeclaration(pensionNumber, userId);
+        
+        res.status(200).json({
+            success: true,
+            ...checkResult
+        });
+        
+    } catch (error: unknown) {
+        console.error('Controller error during declaration check:', error);
+        next(error);
+    }
+}
+
 export const handleCreateDeclaration = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try { 
-
         const userId = (req as any).user.userId;
-
         const { decujus_pension_number, relationship_id, death_cause_id, declaration_date, status } = req.body;
-        const declarationInput:CreateDeclarationInput = {
+        
+        // First check if declaration already exists
+        const checkResult = await declarationService.checkExistingDeclaration(decujus_pension_number, userId);
+        
+        if (checkResult.exists && checkResult.declaration) {
+            if (checkResult.declaration.applicant_user_id === userId) {
+                // User's own existing declaration - return it with documents
+                const declarationDocuments = await documentService.getDeclarationDocumentsStatus(checkResult.declaration.declaration_id);
+                res.status(200).json({
+                    success: true,
+                    message: checkResult.message,
+                    declaration: checkResult.declaration,
+                    documents: declarationDocuments,
+                    isExisting: true
+                });
+                return;
+            } else {
+                // Another user's declaration
+                res.status(409).json({
+                    success: false,
+                    message: checkResult.message
+                });
+                return;
+            }
+        }
+        
+        // Create new declaration if none exists
+        const declarationInput: CreateDeclarationInput = {
             applicant_user_id: userId,
             decujus_pension_number,
             relationship_id,
@@ -20,12 +68,24 @@ export const handleCreateDeclaration = async (req: Request, res: Response, next:
             declaration_date: declaration_date ? new Date(declaration_date): new Date(),
             status: Status.SUBMITTED 
         };
+        
         const createdDeclaration = await declarationService.createDeclaration(declarationInput);
         if (!createdDeclaration) {
             res.status(400).json({ message: 'Failed to create declaration' });
             return;
         }
-        res.status(201).json(createdDeclaration);
+        
+        // Get the created declaration with documents
+        const declarationDocuments = await documentService.getDeclarationDocumentsStatus(createdDeclaration.declaration_id);
+        
+        res.status(201).json({
+            success: true,
+            message: 'Declaration created successfully',
+            declaration: createdDeclaration,
+            documents: declarationDocuments,
+            isExisting: false
+        });
+        
     } catch (error: unknown) {
         console.error('Controller error during declaration creation:', error);
         next(error); 

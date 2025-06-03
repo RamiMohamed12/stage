@@ -4,7 +4,6 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const pool = mysql.createPool({
-
     database: process.env.DB_DATABASE,
     user: process.env.DB_USER, 
     password: process.env.DB_PASSWORD,
@@ -14,19 +13,18 @@ const pool = mysql.createPool({
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-
+    
+    // Valid mysql2 options only
+    timezone: '+00:00',
+    charset: 'utf8mb4',
+    
+    // InnoDB specific settings
+    typeCast: function (field, next) {
+        if (field.type === 'TINY' && field.length === 1) {
+            return (field.string() === '1'); // Convert TINYINT(1) to boolean
+        }
+        return next();
+    }
 });  
 
-// this is just a test to see if the connection is working
-//pool.getConnection() 
- //   .then(connection => {
-  //      console.log("Connected to the database"); 
-   //     connection.release(); // release the connection back to the pool
-   // })
-   // .catch(err => {
-    //    console.log("Error connecting to the database: ", err);
-     //   process.exit(1); // exit the process with failure
-  //  }); 
-
-
-export default pool; 
+export default pool;

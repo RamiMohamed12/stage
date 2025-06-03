@@ -3,6 +3,7 @@ import 'package:frontend/screens/login_screen.dart'; // Make sure LoginScreen is
 import 'package:frontend/screens/agency_selection_screen.dart';
 import 'package:frontend/screens/signup_screen.dart';
 import 'package:frontend/screens/verification_result_screen.dart';
+import 'package:frontend/screens/documents_upload_screen.dart'; // Import the new screen
 import 'package:frontend/constants/colors.dart';
 
 void main() {
@@ -113,6 +114,20 @@ class MyApp extends StatelessWidget {
         '/verificationResult': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>; 
           return VerificationResultScreen(routeArgs: args);
+        },
+        '/documents-upload': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+          if (args == null || !args.containsKey('declarationId')) {
+            return const Scaffold(
+              body: Center(
+                child: Text('Invalid or missing arguments for documents upload.'),
+              ),
+            );
+          }
+          return DocumentsUploadScreen(
+            declarationId: args['declarationId'],
+            documents: args['documents'] ?? [],
+          );
         },
       },
     );
