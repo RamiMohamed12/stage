@@ -141,6 +141,19 @@ class _VerificationResultScreenState extends State<VerificationResultScreen> {
                   ),
                 ),
                 const SizedBox(height: 15),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.description, color: AppColors.whiteColor),
+                  label: const Text('Créer une Déclaration (Test)', style: TextStyle(color: AppColors.whiteColor, fontSize: 16)),
+                  onPressed: () => Navigator.pushNamed(context, '/create-declaration'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 15),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.logout, color: AppColors.primaryColor),
                   label: const Text('Se Déconnecter', style: TextStyle(color: AppColors.primaryColor, fontSize: 16)),

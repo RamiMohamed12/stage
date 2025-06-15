@@ -1,5 +1,5 @@
 class ApiEndpoints { 
-  static const String baseUrl = 'http://192.168.27.17:3000/api';
+  static const String baseUrl = 'http://192.168.95.17:3000/api';
 
   static const String user = '$baseUrl/users';
   static const String decujus = '$baseUrl/decujus';

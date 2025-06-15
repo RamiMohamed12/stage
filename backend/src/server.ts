@@ -9,6 +9,7 @@ import userRoutes from './routes/userRoutes'; // Adjust path if needed
 import deathCauseRoutes from './routes/deathCauseRoutes'; // Import death cause routes
 import declarationRoutes from './routes/declarationRoutes'; // Import declaration routes
 import adminRoutes from './routes/adminRoutes'; // Import admin routes
+import path from 'path'; // Import path module
 
 dotenv.config();
 
@@ -19,6 +20,9 @@ const port = process.env.PORT ? Number(process.env.PORT): 3000;
 app.use(cors()); // Enable Cross-Origin Resource Sharing
 app.use(express.json()); // Parse incoming JSON requests
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded requests
+
+// Serve uploaded files statically from src/uploads directory
+app.use('/uploads', express.static(path.join(__dirname, '../src/uploads')));
 
 // --- Mount API Routes ---
 app.use('/api/users', userRoutes);
@@ -65,4 +69,4 @@ app.listen(port, '0.0.0.0', () => {
   console.log(`Admin routes available at http://localhost:${port}/api/admin`); // Added log
 });
 
-export default app; 
+export default app;

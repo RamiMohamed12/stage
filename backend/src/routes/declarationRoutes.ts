@@ -6,11 +6,17 @@ import path from 'path';
 import fs from 'fs';
 
 
-const UPLOAD_DIR = path.join(__dirname, '../uploads');
+// Fix: Point to the src/uploads directory instead of dist/uploads
+const UPLOAD_DIR = path.join(__dirname, '../../src/uploads');
 
+
+// Ensure the directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    console.log(`Created uploads directory at: ${UPLOAD_DIR}`);
 }
+
+console.log(`Upload directory set to: ${UPLOAD_DIR}`);
 
 const storage = multer.diskStorage({ 
     destination: function(req, file,cb){ 
@@ -23,11 +29,26 @@ const storage = multer.diskStorage({
 })
 
 const fileFilter = (req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-    const allowedFileTypes = /jpeg|jpg|png|pdf|doc|docx|svg|heic|/i; 
-    if (!allowedFileTypes.test(path.extname(file.originalname).toLowerCase())) {
-        return cb(new Error('Invalid file type. Only JPEG, PNG, PDF, DOC, DOCX, SVG, HEIC files are allowed.'));
+    const allowedExtensions = /jpeg|jpg|png|pdf|doc|docx|svg|heic/i;
+    const allowedMimeTypes = [
+        'image/jpeg',
+        'image/jpg', 
+        'image/png',
+        'image/svg+xml',
+        'image/heic',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+    const isValidExtension = allowedExtensions.test(fileExtension);
+    const isValidMimeType = allowedMimeTypes.includes(file.mimetype.toLowerCase());
+    
+    if (!isValidExtension) {
+        return cb(new Error('Invalid file extension. Only JPEG, JPG, PNG, PDF, DOC, DOCX, SVG, HEIC files are allowed.'));
     }
-    if (!allowedFileTypes.test(file.mimetype)) {
+    if (!isValidMimeType) {
         return cb(new Error('Invalid file type. Only JPEG, PNG, PDF, DOC, DOCX, SVG, HEIC files are allowed.'));
     }
     cb(null, true);
@@ -40,8 +61,6 @@ const upload = multer({
 });
 
 const router = express.Router();
-// Middleware to authenticate token
-router.use(authenticateToken);
 
 // Add route to check for existing declarations
 router.get('/check/:pensionNumber', authenticateToken, declarationController.handleCheckDeclaration);
@@ -54,7 +73,14 @@ router.get('/:declarationId', authenticateToken, declarationController.handleGet
 
 router.get('/:declarationId/documents', authenticateToken, declarationController.handleGetDeclarationDocumentsStatus);
 
-router.post('/:declarationDocumentId/upload', authenticateToken, upload.single('documentFile'), declarationController.handleUploadDeclarationDocument);
+// Fix: Add authentication middleware to the upload route
+router.post('/documents/:declarationDocumentId/upload', 
+    authenticateToken, 
+    upload.single('documentFile'), 
+    declarationController.handleUploadDeclarationDocument
+);
+
+router.get('/user/pending', authenticateToken, declarationController.handleGetUserPendingDeclaration);
 
 export default router;
 

@@ -71,6 +71,19 @@ class DeclarationDocument {
         return DocumentStatus.pending;
     }
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'declaration_document_id': declarationDocumentId,
+      'document_type_id': documentTypeId,
+      'document_name': documentName,
+      'status': status.name,
+      'uploaded_file_path': uploadedFilePath,
+      'uploaded_at': uploadedAt?.toIso8601String(),
+      'rejection_reason': rejectionReason,
+      'is_mandatory': isMandatory,
+    };
+  }
 }
 
 class DeclarationResponse {

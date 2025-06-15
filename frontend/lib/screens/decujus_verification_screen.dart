@@ -213,8 +213,8 @@ class _DecujusVerificationScreenState extends State<DecujusVerificationScreen>
             context,
             '/documents-upload',
             arguments: {
-              'declarationId': response['declaration']['declaration_id'].toString(), // Ensure declarationId is a string
-              'documents': response['documents'],
+              'declarationId': response['declaration']['declaration_id'], // Keep as int
+              'declarantName': '${_verifiedDecujus!.firstName} ${_verifiedDecujus!.lastName}',
             },
           );
         }

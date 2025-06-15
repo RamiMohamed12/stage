@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/widgets/loading_indicator.dart'; // Import the custom loading indicator
 import '../services/auth_service.dart';
+import '../services/declaration_service.dart'; // Add this import
 import '../constants/colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,6 +17,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final AuthService _authService = AuthService();
+  final DeclarationService _declarationService = DeclarationService(); // Add this
   String _email = '';
   String _password = '';
   String _error = '';
@@ -98,15 +100,39 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     try {
       final result = await _authService.login(_email, _password);
       if (!mounted) return;
-      // Set loading to false regardless of outcome, but after processing
-      // setState(() { _loading = false; }); // Moved to finally block
 
       if (result['success']) {
-        final token = result['data']?['token']; // Safer access
+        final token = result['data']?['token'];
         if (token != null && mounted) {
           await _saveEmail(_email);
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, '/agencySelection');
+          
+          // Check for pending declarations after successful login
+          try {
+            final pendingDeclaration = await _declarationService.getUserPendingDeclaration();
+            
+            if (mounted) {
+              if (pendingDeclaration != null) {
+                // User has pending documents under review - redirect to review screen
+                Navigator.pushReplacementNamed(
+                  context, 
+                  '/documents-review',
+                  arguments: {
+                    'declarationId': pendingDeclaration['declaration']['declaration_id'],
+                    'applicantName': result['data']?['user']?['firstName'],
+                  },
+                );
+              } else {
+                // No pending declarations - proceed to agency selection
+                Navigator.pushReplacementNamed(context, '/agencySelection');
+              }
+            }
+          } catch (pendingError) {
+            // If checking pending declarations fails, continue to agency selection
+            // This ensures users can still log in even if the pending check fails
+            print('Warning: Failed to check pending declarations: $pendingError');
+            if (mounted) {
+              Navigator.pushReplacementNamed(context, '/agencySelection');
+            }
           }
         } else {
           if (mounted) {
@@ -122,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               _errorList = List<String>.from(
                   (result['errors'] as List).map((e) => e is Map ? e['msg'].toString() : e.toString())
               );
-              _error = ''; // Clear general error if specific errors are present
+              _error = '';
             });
           } else {
             setState(() {
@@ -135,7 +161,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     } catch (e) {
       if (mounted) {
         setState(() {
-          // _loading = false; // Moved to finally block
           _error = 'Erreur de connexion: ${e.toString()}';
           _errorList = [];
         });

@@ -190,20 +190,25 @@ export const updateDocumentOnUpload = async (declarationDocumentId: number, file
     let connection: PoolConnection | undefined; 
     try { 
         connection = await pool.getConnection();
+        
+        // Convert absolute file path to relative path for HTTP serving
+        // Extract just the filename from the full path
+        const filename = filePath.split('/').pop() || filePath.split('\\').pop() || filePath;
+        const relativePath = `/uploads/${filename}`;
+        
         const sql = `UPDATE declaration_documents 
         SET 
             status = 'uploaded', 
             uploaded_file_path = ?, 
-            -- original_filename = ?, -- We don't have this column in declaration_documents
             uploaded_at = CURRENT_TIMESTAMP 
         WHERE declaration_document_id = ?;`
     
-        const [result] = await connection.query(sql, [filePath, declarationDocumentId]);
+        const [result] = await connection.query(sql, [relativePath, declarationDocumentId]);
         const affectedRows = (result as { affectedRows: number }).affectedRows;
         if (affectedRows === 0) {
             throw new ServiceErorr(`No document found with ID ${declarationDocumentId}`, 404);
         }
-        console.log(`Document with ID ${declarationDocumentId} updated successfully.`);
+        console.log(`Document with ID ${declarationDocumentId} updated successfully with path: ${relativePath}`);
     } catch (error: any) {
         console.error('Error updating document on upload:', error.message);
         if (error instanceof ServiceErorr) {

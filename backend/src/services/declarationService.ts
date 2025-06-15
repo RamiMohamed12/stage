@@ -190,3 +190,38 @@ export const checkExistingDeclaration = async (pensionNumber: string, userId: nu
         }
     }
 }
+
+export const getUserPendingDeclaration = async (userId: number): Promise<Declarations | null> => {
+    let connection: PoolConnection | undefined;
+    try {
+        connection = await pool.getConnection();
+        
+        // Get user's most recent declaration that has uploaded documents still under review
+        const sql = `
+            SELECT DISTINCT d.*
+            FROM declarations d
+            JOIN declaration_documents dd ON d.declaration_id = dd.declaration_id
+            WHERE d.applicant_user_id = ? 
+            AND dd.uploaded_file_path IS NOT NULL 
+            AND dd.status IN ('pending', 'uploaded')
+            ORDER BY d.created_at DESC
+            LIMIT 1
+        `;
+        
+        const [rows] = await connection.query<RowDataPacket[]>(sql, [userId]);
+        
+        if (rows.length === 0) {
+            return null;
+        }
+        
+        return rows[0] as Declarations;
+        
+    } catch (error) {
+        console.error('[declarationService] Error in getUserPendingDeclaration:', error);
+        throw new ServiceErorr('Failed to get user pending declaration', 500);
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+}

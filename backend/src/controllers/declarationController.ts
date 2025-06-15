@@ -2,6 +2,7 @@ import {Request, Response, NextFunction} from "express";
 import * as declarationService from '../services/declarationService';
 import { CreateDeclarationInput, Status } from "../models/Declarations";
 import * as documentService from '../services/documentService';
+import * as usersService from '../services/usersService'; // Add this import
 import {RowDataPacket} from 'mysql2/promise';
 import {ServiceErorr} from '../services/usersService';
 
@@ -39,12 +40,20 @@ export const handleCreateDeclaration = async (req: Request, res: Response, next:
         
         if (checkResult.exists && checkResult.declaration) {
             if (checkResult.declaration.applicant_user_id === userId) {
-                // User's own existing declaration - return it with documents
+                // User's own existing declaration - return it with documents and user info
                 const declarationDocuments = await documentService.getDeclarationDocumentsStatus(checkResult.declaration.declaration_id);
+                
+                // Get user information for declarant name
+                const user = await usersService.getUserbyId(userId);
+                const declarantName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown' : 'Unknown';
+                
                 res.status(200).json({
                     success: true,
                     message: checkResult.message,
-                    declaration: checkResult.declaration,
+                    declaration: {
+                        ...checkResult.declaration,
+                        declarant_name: declarantName
+                    },
                     documents: declarationDocuments,
                     isExisting: true
                 });
@@ -78,10 +87,17 @@ export const handleCreateDeclaration = async (req: Request, res: Response, next:
         // Get the created declaration with documents
         const declarationDocuments = await documentService.getDeclarationDocumentsStatus(createdDeclaration.declaration_id);
         
+        // Get user information for declarant name
+        const user = await usersService.getUserbyId(userId);
+        const declarantName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown' : 'Unknown';
+        
         res.status(201).json({
             success: true,
             message: 'Declaration created successfully',
-            declaration: createdDeclaration,
+            declaration: {
+                ...createdDeclaration,
+                declarant_name: declarantName
+            },
             documents: declarationDocuments,
             isExisting: false
         });
@@ -115,8 +131,14 @@ export const handleGetDeclarationById = async (req: Request, res: Response, next
             res.status(404).json({ message: 'Declaration documents not found' });
             return;
         }
+        
+        // Get user information for declarant name
+        const user = await usersService.getUserbyId(userId);
+        const declarantName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown' : 'Unknown';
+        
         const response = {
             ...declaration,
+            declarant_name: declarantName,
             documents: declarationDocuments
          };
         res.status(200).json(response);
@@ -194,5 +216,35 @@ export const handleUploadDeclarationDocument = async (req: Request, res: Respons
     } catch (error: unknown) {
         console.error('Controller error during document upload:', error);
         next(error);   
+    }
+} 
+
+export const handleGetUserPendingDeclaration = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const userId = (req as any).user.userId;
+        
+        // Get user's most recent declaration with uploaded documents that are still pending review
+        const pendingDeclaration = await declarationService.getUserPendingDeclaration(userId);
+        
+        if (!pendingDeclaration) {
+            res.status(404).json({ message: 'No pending declarations found' });
+            return;
+        }
+        
+        // Get user information for declarant name
+        const user = await usersService.getUserbyId(userId);
+        const declarantName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown' : 'Unknown';
+        
+        res.status(200).json({
+            success: true,
+            declaration: {
+                ...pendingDeclaration,
+                declarant_name: declarantName
+            }
+        });
+        
+    } catch (error: unknown) {
+        console.error('Controller error during pending declaration retrieval:', error);
+        next(error);
     }
 }

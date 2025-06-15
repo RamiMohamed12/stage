@@ -76,5 +76,36 @@ class DeclarationService {
       throw Exception('Failed to create declaration: ${response.statusCode}, ${response.body}');
     }
   }
-  // Add other methods like getDeclarationById, getAllDeclarationsForUser, uploadDocument etc. later
+
+  // Method to get user's declarations and check for pending document reviews
+  Future<Map<String, dynamic>?> getUserPendingDeclaration() async {
+    final token = await _tokenService.getToken();
+    if (token == null) {
+      throw Exception('Token not found. Please login again.');
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiEndpoints.declarations}/user/pending'),
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data;
+      } else if (response.statusCode == 404) {
+        // No pending declarations found
+        return null;
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        throw Exception('Unauthorized: Invalid token');
+      } else {
+        throw Exception('Failed to get pending declarations: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error checking pending declarations: ${e.toString()}');
+    }
+  }
 }

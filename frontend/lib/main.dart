@@ -3,7 +3,9 @@ import 'package:frontend/screens/login_screen.dart'; // Make sure LoginScreen is
 import 'package:frontend/screens/agency_selection_screen.dart';
 import 'package:frontend/screens/signup_screen.dart';
 import 'package:frontend/screens/verification_result_screen.dart';
-import 'package:frontend/screens/documents_upload_screen.dart'; // Import the new screen
+import 'package:frontend/screens/document_upload_screen.dart'; // Import the correct screen
+import 'package:frontend/screens/documents_review_screen.dart'; // Add this import
+import 'package:frontend/screens/declaration/create_declaration_screen.dart'; // Add this import
 import 'package:frontend/constants/colors.dart';
 
 void main() {
@@ -111,22 +113,37 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignupScreen(),
         '/agencySelection': (context) => const AgencySelectionScreen(),
+        '/create-declaration': (context) => const CreateDeclarationScreen(), // Add this route
         '/verificationResult': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>; 
           return VerificationResultScreen(routeArgs: args);
         },
         '/documents-upload': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
-          if (args == null || !args.containsKey('declarationId')) {
+          if (args == null || !args.containsKey('declarationId') || !args.containsKey('declarantName')) {
             return const Scaffold(
               body: Center(
                 child: Text('Invalid or missing arguments for documents upload.'),
               ),
             );
           }
-          return DocumentsUploadScreen(
+          return DocumentUploadScreen(
             declarationId: args['declarationId'],
-            documents: args['documents'] ?? [],
+            declarantName: args['declarantName'],
+          );
+        },
+        '/documents-review': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+          if (args == null || !args.containsKey('declarationId')) {
+            return const Scaffold(
+              body: Center(
+                child: Text('Invalid or missing arguments for documents review.'),
+              ),
+            );
+          }
+          return DocumentsReviewScreen(
+            declarationId: args['declarationId'],
+            applicantName: args['applicantName'],
           );
         },
       },
