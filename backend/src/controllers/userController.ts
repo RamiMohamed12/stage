@@ -56,6 +56,105 @@ export const signupUser = async (req: Request, res: Response, next: NextFunction
     }
 };
 
+export const signupAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { email, password, first_name, last_name } = req.body;
+
+        if (!password) {
+            res.status(400).json({ message: 'Password is required for admin signup.' });
+            return;
+        }
+
+        // Hash the password
+        const password_hash = await hashPassword(password);
+
+        const adminData: CreateUserInput = {
+            email,
+            password_hash,
+            first_name,
+            last_name,
+            // Role will be forced to ADMIN in the createAdmin service
+        };
+
+        // Use the createAdmin service which enforces ADMIN role
+        const newAdmin = await usersService.createAdmin(adminData);
+
+        // Generate JWT token for the new admin
+        const token = generateToken(newAdmin.user_id, newAdmin.role);
+
+        // Prepare response, excluding password_hash from the admin object
+        const { password_hash: _, ...adminSafeDetails } = newAdmin;
+
+        res.status(201).json({
+            message: "Admin created and logged in successfully",
+            token: token,
+            user: adminSafeDetails
+        });
+
+    } catch (error: unknown) {
+        if (error instanceof ServiceErorr) {
+            res.status(error.statusCode).json({ message: error.message });
+        } else if (error instanceof Error) {
+            console.error("Admin Signup Error:", error);
+            res.status(500).json({ message: "An internal error occurred during admin signup.", error: error.message });
+        } else {
+            console.error("Admin Signup Error (Unknown):", error);
+            res.status(500).json({ message: "An unknown internal error occurred during admin signup." });
+        }
+    }
+};
+
+export const loginAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { email, password } = req.body;
+
+        // Find user by email
+        const user = await usersService.getUserByEmail(email);
+
+        // Check if user exists
+        if (!user) {
+            res.status(401).json({ message: 'Invalid email or password.' });
+            return;
+        }
+
+        // Check if user has admin role
+        if (user.role !== Role.ADMIN) {
+            res.status(403).json({ message: 'Access denied. Admin privileges required.' });
+            return;
+        }
+
+        // Check if password matches
+        if (!(await comparePassword(password, user.password_hash))) {
+            res.status(401).json({ message: 'Invalid email or password.' });
+            return;
+        }
+
+        // Generate JWT token
+        const token = generateToken(user.user_id, user.role);
+
+        // Prepare response, excluding password_hash from the user object
+        const { password_hash: _, ...userSafeDetails } = user;
+
+        res.status(200).json({ 
+            message: "Admin login successful",
+            token: token,
+            user: userSafeDetails
+        });
+
+    } catch (error: unknown) {
+        if (error instanceof ServiceErorr) {
+            console.error("Admin Login Service Error:", error);
+            res.status(500).json({ message: "An internal error occurred during admin login." });
+        } else if (error instanceof Error) {
+            console.error("Admin Login Error:", error);
+            res.status(500).json({ message: "An internal error occurred during admin login.", error: error.message });
+        } else {
+            console.error("Admin Login Error (Unknown):", error);
+            res.status(500).json({ message: "An unknown internal error occurred during admin login." });
+        }
+    }
+};
+
 // Controller for user login
 export const loginUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -73,8 +172,14 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
         // Generate JWT token
         const token = generateToken(user.user_id, user.role);
 
-        // Send token back to client
-        res.status(200).json({ token }); // Login response only includes the token currently
+        // Prepare response, excluding password_hash from the user object
+        const { password_hash: _, ...userSafeDetails } = user;
+
+        // Send token and user data back to client
+        res.status(200).json({ 
+            token: token,
+            user: userSafeDetails
+        });
 
     } catch (error: unknown) {
         if (error instanceof ServiceErorr) {

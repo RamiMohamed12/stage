@@ -3,7 +3,6 @@ import * as adminController from '../controllers/adminController';
 import { authenticateToken, checkRole } from '../middleware/authMiddleware';
 import { Role } from '../models/Users'; // Import the Role enum
 
-
 const router = express.Router();
 
 router.use(authenticateToken);

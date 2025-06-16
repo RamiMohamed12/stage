@@ -356,3 +356,72 @@ export const deleteUser = async (userId: number): Promise<void> => {
         }
     }
 }
+
+export const createAdmin = async (user: CreateUserInput): Promise<Users> => {
+    const { email, password_hash, first_name, last_name } = user;
+    let connection: PoolConnection | undefined;
+
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        // Check if the email is already used by an active account
+        const checkSql = 'SELECT user_id FROM users WHERE email = ? AND deleted_at IS NULL';
+        const [existing] = await connection.execute<RowDataPacket[]>(checkSql, [email]);
+
+        if (existing.length > 0) {
+            await connection.rollback();
+            throw new ServiceErorr('Email already used by an active account.', 409);
+        }
+
+        // Insert new admin user with ADMIN role
+        const insertSql = 'INSERT INTO users (email, password_hash, first_name, last_name, role) VALUES (?, ?, ?, ?, ?)';
+        const values = [email, password_hash, first_name, last_name, Role.ADMIN];
+
+        const [result] = await connection.execute<ResultSetHeader>(insertSql, values);
+
+        if (result.affectedRows === 0) {
+            await connection.rollback();
+            throw new ServiceErorr('Failed to create admin user.', 500);
+        }
+
+        // Fetch the newly created admin user
+        const [newUserRows] = await connection.execute<RowDataPacket[]>(
+            'SELECT user_id, email, role, first_name, last_name, created_at, updated_at FROM users WHERE user_id = ? AND deleted_at IS NULL',
+            [result.insertId]
+        );
+
+        if (newUserRows.length === 0) {
+            await connection.rollback();
+            throw new ServiceErorr('Failed to retrieve newly created admin user.', 500);
+        }
+
+        const newAdmin = newUserRows[0] as Users;
+
+        await connection.commit();
+        console.log(`Successfully created admin user with ID ${newAdmin.user_id} and email ${newAdmin.email}`);
+        
+        return newAdmin;
+
+    } catch (error: any) {
+        if (connection) {
+            try {
+                await connection.rollback();
+            } catch (rollbackError) {
+                console.error('Failed to rollback transaction during admin creation:', rollbackError);
+            }
+        }
+
+        console.error('Error while creating admin user:', error);
+        
+        if (error instanceof ServiceErorr) {
+            throw error;
+        }
+        throw new ServiceErorr('An internal error occurred while creating the admin user.', 500);
+
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+}

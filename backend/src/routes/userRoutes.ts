@@ -4,7 +4,9 @@ import { Role } from '../models/Users';
 // Import Controllers
 import {
     signupUser,
+    signupAdmin,
     loginUser,
+    loginAdmin,
     getAllUsers,
     getUserById,
     updateUser,
@@ -36,12 +38,28 @@ router.post(
     signupUser            
 );
 
+// Create a new admin user
+router.post(
+    '/admin/signup',
+    validateSignup,       
+    handleValidationErrors, 
+    signupAdmin           
+);
+
 // Authenticate a user and get a token
 router.post(
     '/login',
     validateLogin,       
     handleValidationErrors, 
     loginUser             
+);
+
+// Authenticate an admin and get a token
+router.post(
+    '/admin/login',
+    validateLogin,       
+    handleValidationErrors, 
+    loginAdmin            
 );
 
 // Get all users (Admin only)
