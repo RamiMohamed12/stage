@@ -8,6 +8,7 @@ import 'package:frontend/services/relationship_service.dart';
 import 'package:frontend/widgets/loading_indicator.dart';
 import 'package:frontend/services/decujus_service.dart';
 import 'package:frontend/constants/colors.dart';
+import 'package:intl/intl.dart'; // Import for date formatting
 
 class DecujusVerificationScreen extends StatefulWidget {
   final int agencyId;
@@ -249,6 +250,17 @@ class _DecujusVerificationScreenState extends State<DecujusVerificationScreen>
     });
   }
 
+  String _formatDate(String dateString) {
+    if (dateString.isEmpty) return 'N/A';
+    try {
+      final DateTime dateTime = DateTime.parse(dateString);
+      return DateFormat('dd/MM/yyyy').format(dateTime);
+    } catch (e) {
+      // If parsing fails, return the original string or a placeholder
+      return dateString; 
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -464,40 +476,40 @@ class _DecujusVerificationScreenState extends State<DecujusVerificationScreen>
                             style: TextStyle(
                               color: Colors.green.shade700,
                               fontWeight: FontWeight.w500,
-                              fontSize: 14,
+                              fontSize: 14, // Standardized font size
                             ),
                           ),
                           if (_verifiedDecujus!.dateOfBirth.isNotEmpty)
                             Text(
-                              "Date de naissance: ${_verifiedDecujus!.dateOfBirth}",
+                              "Date de naissance: ${_formatDate(_verifiedDecujus!.dateOfBirth)}", // Apply date formatting
                               style: TextStyle(
                                 color: Colors.green.shade700,
-                                fontSize: 14,
+                                fontSize: 14, // Standardized font size
                               ),
                             ),
                            Text(
-                            "Pension Active: ${_verifiedDecujus!.isPensionActive ? 'Oui' : 'Non'}",
+                            "Pension Active: ${_verifiedDecujus!.isPensionActive ? 'Oui' : 'Non'}", // Corrected string escaping
                             style: TextStyle(
                               color: _verifiedDecujus!.isPensionActive ? Colors.green.shade700 : Colors.orange.shade700,
-                              fontSize: 14,
+                              fontSize: 14, // Standardized font size
                             ),
                           ),
-                        ] else if (_verificationResult!['data']?['first_name'] != null || // Fallback if _verifiedDecujus is somehow null
-                            _verificationResult!['data']?['last_name'] != null)
+                        ] else if (_verificationResult!['data']?['first_name'] != null || // Corrected string escaping
+                            _verificationResult!['data']?['last_name'] != null) // Corrected string escaping
                           Text(
-                            "Nom: ${_verificationResult!['data']?['first_name'] ?? ''} ${_verificationResult!['data']?['last_name'] ?? ''}".trim(),
+                            "Nom: ${_verificationResult!['data']?['first_name'] ?? ''} ${_verificationResult!['data']?['last_name'] ?? ''}".trim(), // Corrected string escaping
                             style: TextStyle(
                               color: Colors.green.shade700,
                               fontWeight: FontWeight.w500,
                               fontSize: 14,
                             ),
                           ),
-                        if (_verificationResult!['data']?['date_of_birth'] != null)
+                        if (_verificationResult!['data']?['date_of_birth'] != null) // Corrected string escaping
                           Text(
-                            "Date de naissance: ${_verificationResult!['data']?['date_of_birth']}",
+                            "Date de naissance: ${_formatDate(_verificationResult!['data']?['date_of_birth'])}", // Corrected string escaping and Apply date formatting
                             style: TextStyle(
                               color: Colors.green.shade700,
-                              fontSize: 14,
+                              fontSize: 14, // Standardized font size
                             ),
                           ),
                       ],
@@ -634,7 +646,6 @@ class _DecujusVerificationScreenState extends State<DecujusVerificationScreen>
             },
             itemBuilder: (Relationship item) => Text(
               item.relationshipName.isNotEmpty ? item.relationshipName : "[Lien de parenté sans nom]",
-              style: const TextStyle(color: AppColors.primaryColor),
             ),
             validator: (value) =>
                 value == null ? 'Veuillez sélectionner une relation' : null,
@@ -651,7 +662,6 @@ class _DecujusVerificationScreenState extends State<DecujusVerificationScreen>
             },
             itemBuilder: (DeathCause item) => Text(
               item.causeName.isNotEmpty ? item.causeName : "[Cause de décès sans nom]",
-              style: const TextStyle(color: AppColors.primaryColor),
             ),
             validator: (value) =>
                 value == null ? 'Veuillez sélectionner une cause de décès' : null,
@@ -674,17 +684,20 @@ class _DecujusVerificationScreenState extends State<DecujusVerificationScreen>
                padding: EdgeInsets.all(8.0),
                child: CircularProgressIndicator(),
              ))
-          else if (_declarationSuccessMessage == null) // Show button only if not successful yet
-            ElevatedButton(
-              onPressed: _submitDeclaration,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryColor,
-                foregroundColor: AppColors.whiteColor,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+          else if (_declarationSuccessMessage == null)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _submitDeclaration,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor,
+                  foregroundColor: AppColors.whiteColor,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+                ),
+                child: const Text('Enregistrer la Déclaration'),
               ),
-              child: const Text('Enregistrer la Déclaration'),
             ),
         ],
       ),
@@ -702,17 +715,21 @@ class _DecujusVerificationScreenState extends State<DecujusVerificationScreen>
     return DropdownButtonFormField<T>(
       decoration: InputDecoration(
         labelText: hintText,
+        labelStyle: const TextStyle(fontSize: 16, color: AppColors.grayColor),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
       ),
       value: value,
-      hint: Text(hintText, style: const TextStyle(color: AppColors.grayColor)),
+      hint: Text(hintText, style: const TextStyle(color: AppColors.grayColor, fontSize: 16)),
       isExpanded: true,
-      dropdownColor: AppColors.whiteColor, // Set dropdown background color
+      dropdownColor: AppColors.whiteColor,
       items: items.map<DropdownMenuItem<T>>((T item) {
         return DropdownMenuItem<T>(
           value: item,
-          child: itemBuilder(item),
+          child: DefaultTextStyle(
+            style: const TextStyle(color: AppColors.textColor, fontSize: 16),
+            child: itemBuilder(item),
+          ),
         );
       }).toList(),
       onChanged: onChanged,
