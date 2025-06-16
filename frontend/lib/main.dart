@@ -7,6 +7,7 @@ import 'package:frontend/screens/document_upload_screen.dart'; // Import the cor
 import 'package:frontend/screens/documents_review_screen.dart'; // Add this import
 import 'package:frontend/screens/declaration/create_declaration_screen.dart'; // Add this import
 import 'package:frontend/screens/formulaire_download_screen.dart'; // Add this import
+import 'package:frontend/screens/notification_screen.dart'; // Add notification screen import
 import 'package:frontend/constants/colors.dart';
 
 void main() {
@@ -115,6 +116,7 @@ class MyApp extends StatelessWidget {
         '/signup': (context) => const SignupScreen(),
         '/agencySelection': (context) => const AgencySelectionScreen(),
         '/create-declaration': (context) => const CreateDeclarationScreen(), // Add this route
+        '/notifications': (context) => const NotificationScreen(), // Add notification route
         '/verificationResult': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>; 
           return VerificationResultScreen(routeArgs: args);

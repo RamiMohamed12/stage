@@ -2,9 +2,11 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../constants/api_endpoints.dart';
 import './token_service.dart'; // Import TokenService
+import './notification_service.dart'; // Import NotificationService
 
 class AuthService {
   final TokenService _tokenService = TokenService(); // Instantiate TokenService
+  final NotificationService _notificationService = NotificationService(); // Instantiate NotificationService
 
   static Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
     final Map<String, dynamic> responseBody = json.decode(response.body);
@@ -24,7 +26,10 @@ class AuthService {
       );
       final result = await _handleResponse(res);
       if (result['success'] && result['data'] != null && result['data']['token'] != null) {
-        await _tokenService.saveToken(result['data']['token']);
+        final token = result['data']['token'];
+        await _tokenService.saveToken(token);
+        // Set auth token for notification service
+        _notificationService.setAuthToken(token);
       }
       return result;
     } catch (e) {
@@ -57,7 +62,10 @@ class AuthService {
       );
       final result = await _handleResponse(res);
       if (result['success'] && result['data'] != null && result['data']['token'] != null) {
-        await _tokenService.saveToken(result['data']['token']);
+        final token = result['data']['token'];
+        await _tokenService.saveToken(token);
+        // Set auth token for notification service
+        _notificationService.setAuthToken(token);
       }
       return result;
     } catch (e) {
@@ -65,8 +73,29 @@ class AuthService {
     }
   }
 
+  // Initialize notification service with existing token
+  Future<void> initializeNotificationService() async {
+    final token = await _tokenService.getToken();
+    if (token != null) {
+      _notificationService.setAuthToken(token);
+    }
+  }
+
+  // Add getToken method to expose TokenService functionality
+  Future<String?> getToken() async {
+    return await _tokenService.getToken();
+  }
+
+  // Check if user is logged in
+  Future<bool> isLoggedIn() async {
+    final token = await _tokenService.getToken();
+    return token != null && token.isNotEmpty;
+  }
+
   Future<void> logout() async {
     await _tokenService.deleteToken();
+    // Clear notification service token
+    _notificationService.setAuthToken('');
     // Potentially notify backend about logout if necessary
   }
 }

@@ -3,6 +3,8 @@ import 'package:frontend/constants/colors.dart';
 import 'package:frontend/models/document.dart';
 import 'package:frontend/services/document_service.dart';
 import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/services/notification_service.dart';
+import 'package:frontend/models/notification.dart' as NotificationModel;
 import 'package:frontend/widgets/loading_indicator.dart';
 import 'dart:async';
 
@@ -23,23 +25,90 @@ class DocumentsReviewScreen extends StatefulWidget {
 class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
   final DocumentService _documentService = DocumentService();
   final AuthService _authService = AuthService();
+  final NotificationService _notificationService = NotificationService();
   List<DeclarationDocument> _documents = [];
+  List<NotificationModel.Notification> _notifications = [];
+  NotificationModel.NotificationStats? _notificationStats;
   bool _isLoading = true;
   String? _errorMessage;
   Timer? _refreshTimer;
+  Timer? _notificationTimer;
   DateTime? _lastRefresh;
 
   @override
   void initState() {
     super.initState();
+    _initializeNotifications();
     _loadDocuments();
     _startAutoRefresh();
+    _startNotificationPolling();
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _notificationTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _initializeNotifications() async {
+    await _notificationService.initializePushNotifications();
+    
+    // Set auth token for notification service
+    final token = await _authService.getToken();
+    if (token != null) {
+      _notificationService.setAuthToken(token);
+    }
+  }
+
+  void _startNotificationPolling() {
+    // Check for new notifications every 30 seconds
+    _notificationTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        _checkForNewNotifications();
+      }
+    });
+  }
+
+  Future<void> _checkForNewNotifications() async {
+    final result = await _notificationService.getUserNotifications(limit: 10, unreadOnly: true);
+    if (result['success'] == true) {
+      final newNotifications = result['notifications'] as List<NotificationModel.Notification>;
+      
+      // Show push notifications for truly new notifications
+      final existingIds = _notifications.map((n) => n.notificationId).toSet();
+      final reallyNewNotifications = newNotifications
+          .where((n) => !existingIds.contains(n.notificationId))
+          .toList();
+      
+      for (final notification in reallyNewNotifications) {
+        await _notificationService.showPushNotification(
+          title: notification.title,
+          body: notification.body,
+          type: notification.type,
+          payload: {
+            'notification_id': notification.notificationId.toString(),
+            'type': notification.type,
+          },
+        );
+      }
+      
+      if (reallyNewNotifications.isNotEmpty) {
+        setState(() {
+          _notifications = newNotifications;
+        });
+        _loadNotificationStats();
+      }
+    }
+  }
+
+  Future<void> _loadNotificationStats() async {
+    final result = await _notificationService.getNotificationStats();
+    if (result['success'] == true) {
+      setState(() {
+        _notificationStats = result['stats'] as NotificationModel.NotificationStats;
+      });
+    }
   }
 
   void _startAutoRefresh() {
@@ -405,6 +474,43 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
+          // Notification button with badge
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications, color: AppColors.whiteColor),
+                tooltip: 'Notifications',
+                onPressed: () {
+                  Navigator.pushNamed(context, '/notifications');
+                },
+              ),
+              if (_notificationStats != null && _notificationStats!.unread > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '${_notificationStats!.unread}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           if (_shouldAutoRefresh())
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
