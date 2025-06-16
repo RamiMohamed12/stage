@@ -5,6 +5,9 @@ import * as documentService from '../services/documentService';
 import * as usersService from '../services/usersService'; // Add this import
 import {RowDataPacket} from 'mysql2/promise';
 import {ServiceErorr} from '../services/usersService';
+import * as path from 'path';
+import * as fs from 'fs';
+import archiver from 'archiver'; // Changed to default import
 
 
 export const handleCheckDeclaration = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -218,6 +221,79 @@ export const handleUploadDeclarationDocument = async (req: Request, res: Respons
         next(error);   
     }
 } 
+
+export const handleDownloadFormulaire = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const userId = (req as any).user.userId;
+        const declarationId = parseInt(req.params.declarationId, 10);
+        
+        if (isNaN(declarationId)) {
+            res.status(400).json({ message: 'Invalid declaration ID' });
+            return;
+        }
+        
+        // Verify the user has access to this declaration
+        const declaration = await declarationService.getDeclarationById(declarationId);
+        if (!declaration) {
+            res.status(404).json({ message: 'Declaration not found' });
+            return;
+        }
+        
+        if (declaration.applicant_user_id !== userId) {
+            res.status(403).json({ message: 'Forbidden: You do not have access to this declaration' });
+            return;
+        }
+        
+        // Path to formulaire directory
+        const formulaireDir = path.join(__dirname, '../../src/formulaire');
+        
+        // Check if formulaire images exist
+        const imageFiles = ['1.jpg', '2.jpg', '3.jpg', '4.jpg'];
+        const existingFiles = imageFiles.filter(file => 
+            fs.existsSync(path.join(formulaireDir, file))
+        );
+        
+        if (existingFiles.length === 0) {
+            res.status(404).json({ message: 'Formulaire files not found' });
+            return;
+        }
+        
+        // Set response headers for ZIP download
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="formulaire_declaration_${declarationId}.zip"`);
+        
+        // Create ZIP archive
+        const archive = archiver('zip', {
+            zlib: { level: 9 } // Compression level
+        });
+        
+        // Handle archive errors
+        archive.on('error', (err: any) => {
+            console.error('Archive error:', err);
+            if (!res.headersSent) {
+                res.status(500).json({ message: 'Error creating archive' });
+            }
+        });
+        
+        // Pipe archive to response
+        archive.pipe(res);
+        
+        // Add each image file to the archive
+        existingFiles.forEach(file => {
+            const filePath = path.join(formulaireDir, file);
+            archive.file(filePath, { name: `formulaire_page_${file}` });
+        });
+        
+        // Finalize the archive
+        await archive.finalize();
+        
+    } catch (error: unknown) {
+        console.error('Controller error during formulaire download:', error);
+        if (!res.headersSent) {
+            next(error);
+        }
+    }
+}
 
 export const handleGetUserPendingDeclaration = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

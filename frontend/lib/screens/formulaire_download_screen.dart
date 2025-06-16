@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/constants/colors.dart';
+import 'package:frontend/services/token_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:typed_data';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:frontend/constants/api_endpoints.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class FormulaireDownloadScreen extends StatefulWidget {
@@ -22,39 +29,99 @@ class _FormulaireDownloadScreenState extends State<FormulaireDownloadScreen> {
   bool _isDownloading = false;
   bool _hasDownloaded = false;
 
+  final TokenService _tokenService = TokenService();
+
   Future<void> _downloadFormulaire() async {
     setState(() {
       _isDownloading = true;
     });
 
     try {
-      // Construct the download URL for the formulaire
-      final downloadUrl = 'http://localhost:3000/api/documents/formulaire/${widget.declarationId}';
-      
-      final Uri url = Uri.parse(downloadUrl);
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-        setState(() {
-          _hasDownloaded = true;
-        });
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Formulaire téléchargé avec succès'),
-              backgroundColor: Colors.green,
-            ),
-          );
+      // Get the authentication token
+      final token = await _tokenService.getToken();
+      if (token == null) {
+        throw Exception('Token d\'authentification non trouvé. Veuillez vous reconnecter.');
+      }
+
+      // Make authenticated HTTP request to download the formulaire
+      final response = await http.get(
+        Uri.parse('${ApiEndpoints.declarations}/formulaire/${widget.declarationId}'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // Get the downloads directory - use app-specific directory
+        Directory? directory;
+        if (Platform.isAndroid) {
+          directory = await getExternalStorageDirectory(); // App-specific external path
+          if (directory != null) {
+            // Create a Downloads folder within app directory if you prefer
+            final downloadsDir = Directory('${directory.path}/Downloads');
+            if (!await downloadsDir.exists()) {
+              await downloadsDir.create(recursive: true);
+            }
+            directory = downloadsDir;
+          }
+        } else {
+          // For iOS and other platforms
+          directory = await getApplicationDocumentsDirectory();
         }
+
+        if (directory != null) {
+          final fileName = 'formulaire_declaration_${widget.declarationId}.zip';
+          final file = File('${directory.path}/$fileName');
+          
+          await file.writeAsBytes(response.bodyBytes);
+          
+          setState(() {
+            _hasDownloaded = true;
+          });
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Formulaire téléchargé: $fileName\nEmplacement: ${directory.path}'),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 5),
+                action: SnackBarAction(
+                  label: 'OK',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  },
+                ),
+              ),
+            );
+          }
+        } else {
+          throw Exception('Impossible d\'accéder au répertoire de téléchargement');
+        }
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else if (response.statusCode == 403) {
+        throw Exception('Accès refusé à cette déclaration.');
+      } else if (response.statusCode == 404) {
+        throw Exception('Formulaire non trouvé pour cette déclaration.');
       } else {
-        throw Exception('Impossible d\'ouvrir le lien de téléchargement');
+        throw Exception('Erreur serveur: ${response.statusCode}');
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur lors du téléchargement: $e'),
+            content: Text('Erreur: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
         );
       }
@@ -68,7 +135,7 @@ class _FormulaireDownloadScreenState extends State<FormulaireDownloadScreen> {
   void _navigateToDocumentUpload() {
     Navigator.pushReplacementNamed(
       context,
-      '/documentUpload',
+      '/documents-upload',
       arguments: {
         'declarationId': widget.declarationId,
         'declarantName': widget.declarantName,

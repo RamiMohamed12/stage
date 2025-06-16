@@ -207,11 +207,11 @@ class _DecujusVerificationScreenState extends State<DecujusVerificationScreen>
           _showDeclarationForm = false;
         });
         
-        // Navigate to documents upload page with the declaration ID
+        // Navigate to formulaire download page first, then to documents upload
         if (response['declaration'] != null && response['declaration']['declaration_id'] != null) {
           Navigator.pushReplacementNamed(
             context,
-            '/documents-upload',
+            '/formulaireDownload',
             arguments: {
               'declarationId': response['declaration']['declaration_id'], // Keep as int
               'declarantName': '${_verifiedDecujus!.firstName} ${_verifiedDecujus!.lastName}',

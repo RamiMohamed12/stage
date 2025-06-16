@@ -80,6 +80,10 @@ router.post('/documents/:declarationDocumentId/upload',
     declarationController.handleUploadDeclarationDocument
 );
 
+// Add route for downloading formulaire
+router.get('/formulaire/:declarationId', authenticateToken, declarationController.handleDownloadFormulaire);
+
+// Get user pending declaration
 router.get('/user/pending', authenticateToken, declarationController.handleGetUserPendingDeclaration);
 
 export default router;

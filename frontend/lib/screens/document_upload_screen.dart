@@ -77,28 +77,16 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   }
 
   Future<void> _uploadDocument(int declarationDocumentId) async {
-    print('🔵 UPLOAD SCREEN: Upload button pressed for document ID: $declarationDocumentId');
-    
     final file = _selectedFiles[declarationDocumentId];
-    if (file == null) {
-      print('🔴 UPLOAD SCREEN: No file selected for document ID: $declarationDocumentId');
-      return;
-    }
-
-    print('🔵 UPLOAD SCREEN: File selected: ${file.path}');
-    print('🔵 UPLOAD SCREEN: Declaration ID: ${widget.declarationId}');
+    if (file == null) return;
 
     setState(() {
       _uploadingStatus[declarationDocumentId] = true;
       _errorMessage = null;
     });
 
-    print('🔵 UPLOAD SCREEN: Starting upload process...');
-
     try {
       await _documentService.uploadDocument(widget.declarationId, declarationDocumentId, file);
-      
-      print('🟢 UPLOAD SCREEN: Upload completed successfully');
       
       // Refresh the documents list to show updated status
       await _loadDocuments();
@@ -117,11 +105,43 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         );
       }
     } catch (e) {
-      print('🔴 UPLOAD SCREEN: Upload failed with error: $e');
       setState(() {
         _uploadingStatus[declarationDocumentId] = false;
         _errorMessage = e.toString();
       });
+    }
+  }
+
+  Future<void> _uploadAllFiles() async {
+    // Get all selected files that haven't been uploaded yet
+    final filesToUpload = <int>[];
+    
+    for (final entry in _selectedFiles.entries) {
+      if (entry.value != null) {
+        final document = _documents.firstWhere(
+          (doc) => doc.declarationDocumentId == entry.key,
+          orElse: () => throw Exception('Document not found')
+        );
+        // Only upload if document is still pending or rejected
+        if (document.status == DocumentStatus.pending || document.status == DocumentStatus.rejected) {
+          filesToUpload.add(entry.key);
+        }
+      }
+    }
+
+    if (filesToUpload.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aucun fichier à télécharger'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Upload all files sequentially
+    for (final documentId in filesToUpload) {
+      await _uploadDocument(documentId);
     }
   }
 
@@ -143,7 +163,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       case DocumentStatus.pending:
         return 'En attente';
       case DocumentStatus.uploaded:
-        return 'Téléchargé';
+        return 'Uploadé'; // Changed from 'Téléchargé'
       case DocumentStatus.approved:
         return 'Approuvé';
       case DocumentStatus.rejected:
@@ -174,10 +194,13 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
 
   void _navigateToNext() {
     if (_canNavigateNext()) {
-      Navigator.pushNamedAndRemoveUntil(
-        context, 
-        '/agencySelection', 
-        (route) => false,
+      Navigator.pushReplacementNamed(
+        context,
+        '/documents-review',
+        arguments: {
+          'declarationId': widget.declarationId,
+          'applicantName': widget.declarantName,
+        },
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -250,33 +273,19 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
+                                      // Document header
                                       Row(
                                         children: [
                                           Expanded(
                                             child: Column(
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
-                                                Row(
-                                                  children: [
-                                                    Text(
-                                                      document.documentName,
-                                                      style: const TextStyle(
-                                                        fontSize: 16,
-                                                        fontWeight: FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                    if (document.isMandatory) ...[
-                                                      const SizedBox(width: 4),
-                                                      const Text(
-                                                        '*',
-                                                        style: TextStyle(
-                                                          color: Colors.red,
-                                                          fontSize: 16,
-                                                          fontWeight: FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ],
+                                                Text(
+                                                  document.documentName,
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Row(
@@ -287,11 +296,15 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                                                       size: 16,
                                                     ),
                                                     const SizedBox(width: 4),
-                                                    Text(
-                                                      _getStatusText(document.status),
-                                                      style: TextStyle(
-                                                        color: _getStatusColor(document.status),
-                                                        fontWeight: FontWeight.w500,
+                                                    Expanded( // Wrap the status Text with Expanded
+                                                      child: Text(
+                                                        _getStatusText(document.status),
+                                                        style: TextStyle(
+                                                          color: _getStatusColor(document.status),
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
+                                                        overflow: TextOverflow.ellipsis, // Optional: handle very long text
+                                                        maxLines: 2, // Optional: allow wrapping up to 2 lines
                                                       ),
                                                     ),
                                                   ],
@@ -299,8 +312,28 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                                               ],
                                             ),
                                           ),
+                                          // Mandatory indicator
+                                          if (document.isMandatory)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.red.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(12),
+                                                border: Border.all(color: Colors.red.withOpacity(0.3)),
+                                              ),
+                                              child: const Text(
+                                                'OBLIGATOIRE',
+                                                style: TextStyle(
+                                                  color: Colors.red,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
                                         ],
                                       ),
+                                      
+                                      // Rejection reason if applicable
                                       if (document.rejectionReason != null) ...[
                                         const SizedBox(height: 8),
                                         Container(
@@ -316,187 +349,79 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                                               Expanded(
                                                 child: Text(
                                                   'Motif de rejet: ${document.rejectionReason}',
-                                                  style: const TextStyle(color: Colors.red),
+                                                  style: const TextStyle(color: Colors.red, fontSize: 12),
                                                 ),
                                               ),
                                             ],
                                           ),
                                         ),
                                       ],
+                                      
                                       const SizedBox(height: 12),
-                                      if (selectedFile != null) ...[
+                                      
+                                      // File selection and display
+                                      if (document.status == DocumentStatus.pending || document.status == DocumentStatus.rejected) ...[
+                                        if (selectedFile != null) ...[
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue.withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                const Icon(Icons.insert_drive_file, color: Colors.blue),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    selectedFile.path.split('/').last,
+                                                    style: const TextStyle(color: Colors.blue),
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  icon: const Icon(Icons.close, color: Colors.red),
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _selectedFiles[document.declarationDocumentId] = null;
+                                                    });
+                                                  },
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ] else ...[
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: OutlinedButton.icon(
+                                              onPressed: () => _pickFile(document.declarationDocumentId),
+                                              icon: const Icon(Icons.attach_file),
+                                              label: const Text('Sélectionner un fichier'),
+                                              style: OutlinedButton.styleFrom(
+                                                foregroundColor: AppColors.primaryColor,
+                                                side: BorderSide(color: AppColors.primaryColor),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ] else if (document.status == DocumentStatus.approved) ...[
                                         Container(
                                           padding: const EdgeInsets.all(8),
                                           decoration: BoxDecoration(
-                                            color: Colors.blue.withOpacity(0.1),
+                                            color: Colors.green.withOpacity(0.1),
                                             borderRadius: BorderRadius.circular(4),
                                           ),
-                                          child: Row(
+                                          child: const Row(
                                             children: [
-                                              const Icon(Icons.insert_drive_file, color: Colors.blue),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: Text(
-                                                  selectedFile.path.split('/').last,
-                                                  style: const TextStyle(color: Colors.blue),
-                                                ),
-                                              ),
-                                              IconButton(
-                                                icon: const Icon(Icons.close, color: Colors.red),
-                                                onPressed: () {
-                                                  setState(() {
-                                                    _selectedFiles[document.declarationDocumentId] = null;
-                                                  });
-                                                },
+                                              Icon(Icons.check_circle, color: Colors.green),
+                                              SizedBox(width: 8),
+                                              Text(
+                                                'Document approuvé',
+                                                style: TextStyle(color: Colors.green),
                                               ),
                                             ],
                                           ),
                                         ),
-                                        const SizedBox(height: 8),
                                       ],
-                                      // Use LayoutBuilder to determine available width
-                                      LayoutBuilder(
-                                        builder: (context, constraints) {
-                                          final isNarrow = constraints.maxWidth < 200;
-                                          
-                                          if (document.status != DocumentStatus.approved) {
-                                            if (isNarrow) {
-                                              // Stack buttons vertically on very narrow screens
-                                              return Column(
-                                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                                children: [
-                                                  SizedBox(
-                                                    height: 36,
-                                                    child: ElevatedButton.icon(
-                                                      icon: const Icon(Icons.attach_file, color: AppColors.whiteColor, size: 14),
-                                                      label: Text(
-                                                        selectedFile == null ? 'Fichier' : 'Changer',
-                                                        style: const TextStyle(color: AppColors.whiteColor, fontSize: 11),
-                                                      ),
-                                                      onPressed: () => _pickFile(document.declarationDocumentId),
-                                                      style: ElevatedButton.styleFrom(
-                                                        backgroundColor: AppColors.primaryColor,
-                                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  if (selectedFile != null) ...[
-                                                    const SizedBox(height: 4),
-                                                    SizedBox(
-                                                      height: 36,
-                                                      child: ElevatedButton.icon(
-                                                        icon: isUploading
-                                                            ? const SizedBox(
-                                                                width: 12,
-                                                                height: 12,
-                                                                child: CircularProgressIndicator(
-                                                                  strokeWidth: 2,
-                                                                  color: AppColors.whiteColor,
-                                                                ),
-                                                              )
-                                                            : const Icon(Icons.cloud_upload, color: AppColors.whiteColor, size: 14),
-                                                        label: Text(
-                                                          isUploading ? 'Upload...' : 'Upload',
-                                                          style: const TextStyle(color: AppColors.whiteColor, fontSize: 11),
-                                                        ),
-                                                        onPressed: isUploading ? null : () => _uploadDocument(document.declarationDocumentId),
-                                                        style: ElevatedButton.styleFrom(
-                                                          backgroundColor: Colors.green,
-                                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ],
-                                              );
-                                            } else {
-                                              // Use Row layout for wider screens
-                                              return Row(
-                                                children: [
-                                                  Expanded(
-                                                    flex: selectedFile == null ? 1 : 2,
-                                                    child: SizedBox(
-                                                      height: 36,
-                                                      child: ElevatedButton.icon(
-                                                        icon: const Icon(Icons.attach_file, color: AppColors.whiteColor, size: 14),
-                                                        label: Text(
-                                                          selectedFile == null ? 'Fichier' : 'Changer',
-                                                          style: const TextStyle(color: AppColors.whiteColor, fontSize: 11),
-                                                          overflow: TextOverflow.ellipsis,
-                                                        ),
-                                                        onPressed: () => _pickFile(document.declarationDocumentId),
-                                                        style: ElevatedButton.styleFrom(
-                                                          backgroundColor: AppColors.primaryColor,
-                                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  if (selectedFile != null) ...[
-                                                    const SizedBox(width: 4),
-                                                    Expanded(
-                                                      flex: 3,
-                                                      child: SizedBox(
-                                                        height: 36,
-                                                        child: ElevatedButton.icon(
-                                                          icon: isUploading
-                                                              ? const SizedBox(
-                                                                  width: 12,
-                                                                  height: 12,
-                                                                  child: CircularProgressIndicator(
-                                                                    strokeWidth: 2,
-                                                                    color: AppColors.whiteColor,
-                                                                  ),
-                                                                )
-                                                              : const Icon(Icons.cloud_upload, color: AppColors.whiteColor, size: 14),
-                                                          label: Text(
-                                                            isUploading ? 'Upload...' : 'Upload',
-                                                            style: const TextStyle(color: AppColors.whiteColor, fontSize: 11),
-                                                            overflow: TextOverflow.ellipsis,
-                                                          ),
-                                                          onPressed: isUploading ? null : () => _uploadDocument(document.declarationDocumentId),
-                                                          style: ElevatedButton.styleFrom(
-                                                            backgroundColor: Colors.green,
-                                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ],
-                                              );
-                                            }
-                                          } else {
-                                            // Approved document state
-                                            return Container(
-                                              height: 36,
-                                              padding: const EdgeInsets.all(8),
-                                              decoration: BoxDecoration(
-                                                color: Colors.green.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(4),
-                                              ),
-                                              child: Row(
-                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                children: [
-                                                  const Icon(Icons.check_circle, color: Colors.green, size: 14),
-                                                  const SizedBox(width: 6),
-                                                  Flexible(
-                                                    child: Text(
-                                                      'Approuvé',
-                                                      style: const TextStyle(
-                                                        color: Colors.green,
-                                                        fontWeight: FontWeight.bold,
-                                                        fontSize: 11,
-                                                      ),
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                          }
-                                        },
-                                      ),
                                     ],
                                   ),
                                 ),
@@ -505,35 +430,47 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                           ),
                         ),
                       ),
+                      
+                      // Bottom buttons
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _canNavigateNext() ? _navigateToNext : null,
+                        child: ElevatedButton.icon(
+                          onPressed: _canNavigateNext() ? () => _uploadAllFiles().then((_) => _navigateToNext()) : null,
+                          icon: const Icon(Icons.upload_file, color: AppColors.whiteColor), // Ensure icon color contrasts with button
+                          label: const Text(
+                            'Tout Uploader et Continuer', // Changed button text
+                            style: TextStyle(color: AppColors.whiteColor, fontSize: 16), // Ensure text color contrasts
+                            textAlign: TextAlign.center, // Center align text
+                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primaryColor,
-                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20), // Adjusted padding
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8.0),
                             ),
                             disabledBackgroundColor: AppColors.primaryColor.withOpacity(0.5),
-                          ),
-                          child: const Text(
-                            'Terminer',
-                            style: TextStyle(
-                              color: AppColors.whiteColor,
-                              fontSize: 18,
+                            textStyle: const TextStyle( // Added textStyle here for consistency
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
-                            ),
+                            )
                           ),
                         ),
                       ),
+                      
                       if (_errorMessage != null) ...[
                         const SizedBox(height: 16),
-                        Text(
-                          _errorMessage!,
-                          style: TextStyle(color: AppColors.errorColor),
-                          textAlign: TextAlign.center,
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.errorColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            _errorMessage!,
+                            style: const TextStyle(color: AppColors.errorColor),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ],
                     ],

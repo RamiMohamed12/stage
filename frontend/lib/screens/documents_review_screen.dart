@@ -4,6 +4,7 @@ import 'package:frontend/models/document.dart';
 import 'package:frontend/services/document_service.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/widgets/loading_indicator.dart';
+import 'dart:async';
 
 class DocumentsReviewScreen extends StatefulWidget {
   final int declarationId;
@@ -25,24 +26,53 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
   List<DeclarationDocument> _documents = [];
   bool _isLoading = true;
   String? _errorMessage;
+  Timer? _refreshTimer;
+  DateTime? _lastRefresh;
 
   @override
   void initState() {
     super.initState();
     _loadDocuments();
+    _startAutoRefresh();
   }
 
-  Future<void> _loadDocuments() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startAutoRefresh() {
+    // Auto-refresh every 30 seconds if documents are still under review
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted && _shouldAutoRefresh()) {
+        _loadDocuments(showLoading: false);
+      }
     });
+  }
+
+  bool _shouldAutoRefresh() {
+    // Only auto-refresh if there are documents still under review
+    return _documents.any((doc) => 
+      doc.status == DocumentStatus.uploaded || 
+      doc.status == DocumentStatus.pending
+    );
+  }
+
+  Future<void> _loadDocuments({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       final documents = await _documentService.getDeclarationDocuments(widget.declarationId);
       setState(() {
         _documents = documents;
         _isLoading = false;
+        _lastRefresh = DateTime.now();
       });
     } catch (e) {
       setState(() {
@@ -148,10 +178,34 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
               ),
               textAlign: TextAlign.center,
             ),
+            if (_lastRefresh != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Dernière mise à jour: ${_formatTime(_lastRefresh!)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.subTitleColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    final difference = now.difference(time);
+    
+    if (difference.inSeconds < 60) {
+      return 'Il y a ${difference.inSeconds} secondes';
+    } else if (difference.inMinutes < 60) {
+      return 'Il y a ${difference.inMinutes} minutes';
+    } else {
+      return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    }
   }
 
   Widget _buildDocumentsList() {
@@ -251,6 +305,28 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
           const SizedBox(height: 12),
         ],
         
+        // Manual refresh button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _isLoading ? null : () => _loadDocuments(),
+            icon: _isLoading 
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.refresh),
+            label: const Text('Actualiser'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primaryColor,
+              side: BorderSide(color: AppColors.primaryColor),
+              padding: const EdgeInsets.symmetric(vertical: 15),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        
         if (allApproved) ...[
           SizedBox(
             width: double.infinity,
@@ -273,6 +349,32 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
           ),
           const SizedBox(height: 12),
         ],
+        
+        // Add documents button (for optional documents)
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              Navigator.pushNamed(
+                context,
+                '/documents-upload',
+                arguments: {
+                  'declarationId': widget.declarationId,
+                  'documents': _documents.map((doc) => doc.toJson()).toList(),
+                  'returnToReview': true,
+                },
+              );
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Ajouter/Modifier documents'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.blue,
+              side: const BorderSide(color: Colors.blue),
+              padding: const EdgeInsets.symmetric(vertical: 15),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
         
         SizedBox(
           width: double.infinity,
@@ -301,7 +403,40 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
         ),
         backgroundColor: AppColors.primaryColor,
         elevation: 0,
-        automaticallyImplyLeading: false, // Remove back button
+        automaticallyImplyLeading: false,
+        actions: [
+          if (_shouldAutoRefresh())
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.autorenew,
+                        size: 16,
+                        color: AppColors.whiteColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Auto',
+                        style: TextStyle(
+                          color: AppColors.whiteColor,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: Stack(
         children: [
@@ -342,34 +477,6 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
                               ),
                             ),
                           ],
-                          
-                          const SizedBox(height: 20),
-                          
-                          // Info card
-                          Card(
-                            color: AppColors.primaryColor.withOpacity(0.1),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.info_outline,
-                                    color: AppColors.primaryColor,
-                                    size: 24,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Vos documents sont en cours de révision. Vous serez notifié une fois le processus terminé.',
-                                    style: TextStyle(
-                                      color: AppColors.primaryColor,
-                                      fontSize: 14,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     ),

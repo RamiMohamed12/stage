@@ -6,6 +6,7 @@ import 'package:frontend/screens/verification_result_screen.dart';
 import 'package:frontend/screens/document_upload_screen.dart'; // Import the correct screen
 import 'package:frontend/screens/documents_review_screen.dart'; // Add this import
 import 'package:frontend/screens/declaration/create_declaration_screen.dart'; // Add this import
+import 'package:frontend/screens/formulaire_download_screen.dart'; // Add this import
 import 'package:frontend/constants/colors.dart';
 
 void main() {
@@ -118,19 +119,52 @@ class MyApp extends StatelessWidget {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>; 
           return VerificationResultScreen(routeArgs: args);
         },
-        '/documents-upload': (context) {
+        '/formulaireDownload': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
           if (args == null || !args.containsKey('declarationId') || !args.containsKey('declarantName')) {
+            return const Scaffold(
+              body: Center(
+                child: Text('Invalid or missing arguments for formulaire download.'),
+              ),
+            );
+          }
+          return FormulaireDownloadScreen(
+            declarationId: args['declarationId'],
+            declarantName: args['declarantName'],
+          );
+        },
+        '/documents-upload': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+          if (args == null || !args.containsKey('declarationId')) {
             return const Scaffold(
               body: Center(
                 child: Text('Invalid or missing arguments for documents upload.'),
               ),
             );
           }
-          return DocumentUploadScreen(
-            declarationId: args['declarationId'],
-            declarantName: args['declarantName'],
-          );
+          
+          // Handle both parameter formats for backward compatibility
+          if (args.containsKey('declarantName')) {
+            // New format: declarationId + declarantName
+            return DocumentUploadScreen(
+              declarationId: args['declarationId'],
+              declarantName: args['declarantName'],
+            );
+          } else if (args.containsKey('documents')) {
+            // Old format: declarationId + documents list
+            // Convert to new format by extracting declarant name if available
+            final documents = args['documents'] as List<dynamic>? ?? [];
+            return DocumentUploadScreen(
+              declarationId: args['declarationId'],
+              declarantName: args['declarantName'] ?? 'Déclarant inconnu',
+            );
+          } else {
+            // Fallback - minimal parameters
+            return DocumentUploadScreen(
+              declarationId: args['declarationId'],
+              declarantName: 'Déclarant',
+            );
+          }
         },
         '/documents-review': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;

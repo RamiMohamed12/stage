@@ -5,6 +5,7 @@ import 'package:frontend/services/document_service.dart';
 import 'package:frontend/widgets/loading_indicator.dart';
 import 'package:frontend/constants/colors.dart';
 import 'dart:io';
+import 'dart:async';
 import 'package:frontend/screens/documents_review_screen.dart';
 
 class DocumentsUploadScreen extends StatefulWidget {
@@ -27,6 +28,7 @@ class _DocumentsUploadScreenState extends State<DocumentsUploadScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   Map<int, PlatformFile?> _selectedFiles = {}; // Store selected files for each document
+  Map<int, bool> _uploadingFiles = {}; // Track upload status for each document
 
   @override
   void initState() {
@@ -35,6 +37,25 @@ class _DocumentsUploadScreenState extends State<DocumentsUploadScreen> {
     print('🔍 DEBUG: Declaration ID: ${widget.declarationId}');
     print('🔍 DEBUG: Raw documents data: ${widget.documents}');
     _initializeDocuments();
+    // Set up periodic refresh to check for status updates
+    _setupPeriodicRefresh();
+  }
+
+  Timer? _refreshTimer;
+
+  void _setupPeriodicRefresh() {
+    // Refresh every 10 seconds to check for status updates
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (mounted) {
+        _refreshDocuments();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   void _initializeDocuments() {
@@ -111,6 +132,7 @@ class _DocumentsUploadScreenState extends State<DocumentsUploadScreen> {
       setState(() {
         _isLoading = true;
         _errorMessage = null;
+        _uploadingFiles[document.declarationDocumentId] = true; // Mark as uploading
       });
 
       print('🔍 DEBUG: Uploading file for document: ${document.documentName}');
@@ -135,6 +157,7 @@ class _DocumentsUploadScreenState extends State<DocumentsUploadScreen> {
       
       setState(() {
         _selectedFiles.remove(document.declarationDocumentId);
+        _uploadingFiles[document.declarationDocumentId] = false; // Mark as not uploading
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -147,6 +170,7 @@ class _DocumentsUploadScreenState extends State<DocumentsUploadScreen> {
       print('🚨 DEBUG: Error uploading file: $e');
       setState(() {
         _errorMessage = 'Erreur lors du téléchargement: $e';
+        _uploadingFiles[document.declarationDocumentId] = false; // Mark as not uploading
       });
     } finally {
       setState(() {
@@ -292,6 +316,7 @@ class _DocumentsUploadScreenState extends State<DocumentsUploadScreen> {
                           itemBuilder: (context, index) {
                             final document = _declarationDocuments[index];
                             final selectedFile = _selectedFiles[document.declarationDocumentId];
+                            final uploading = _uploadingFiles[document.declarationDocumentId] ?? false;
                             
                             return Card(
                               margin: const EdgeInsets.only(bottom: 16),
@@ -393,7 +418,7 @@ class _DocumentsUploadScreenState extends State<DocumentsUploadScreen> {
                                         ),
                                         const SizedBox(height: 8),
                                         ElevatedButton.icon(
-                                          onPressed: () => _uploadFile(document),
+                                          onPressed: uploading ? null : () => _uploadFile(document),
                                           icon: const Icon(Icons.upload, size: 16),
                                           label: const Text('Télécharger'),
                                           style: ElevatedButton.styleFrom(
