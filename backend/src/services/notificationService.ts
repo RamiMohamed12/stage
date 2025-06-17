@@ -292,12 +292,12 @@ export const sendDocumentReviewNotification = async (
     declarationId?: number
 ): Promise<void> => {
     const title = status === 'approved' 
-        ? `Document Approved: ${documentType}`
-        : `Document Rejected: ${documentType}`;
+        ? `Document Approuvé: ${documentType}`
+        : `Document Rejeté: ${documentType}`;
     
     const body = status === 'approved'
-        ? `Your ${documentType} has been reviewed and approved by our admin team.`
-        : `Your ${documentType} has been reviewed and requires attention. Please check your declaration for details.`;
+        ? `Votre ${documentType} a été examiné et approuvé par notre équipe administrative.`
+        : `Votre ${documentType} a été examiné et nécessite une attention. Veuillez vérifier votre déclaration pour plus de détails.`;
 
     try {
         await sendNotificationToUser(
@@ -319,8 +319,8 @@ export const sendDeclarationApprovedNotification = async (
     adminId: number,
     declarationId: number
 ): Promise<void> => {
-    const title = 'Declaration Approved';
-    const body = 'Congratulations! Your declaration has been approved. You can now proceed with the next steps in the process.';
+    const title = 'Déclaration Approuvée';
+    const body = 'Félicitations! Votre déclaration a été approuvée. Vous pouvez maintenant procéder aux étapes suivantes du processus.';
 
     try {
         await sendNotificationToUser(
@@ -343,10 +343,10 @@ export const sendDeclarationRejectedNotification = async (
     declarationId: number,
     reason?: string
 ): Promise<void> => {
-    const title = 'Declaration Rejected';
+    const title = 'Déclaration Rejetée';
     const body = reason 
-        ? `Your declaration has been rejected. Reason: ${reason}. Please review and resubmit with the necessary corrections.`
-        : 'Your declaration has been rejected. Please review the feedback and resubmit with the necessary corrections.';
+        ? `Votre déclaration a été rejetée. Raison: ${reason}. Veuillez examiner et soumettre à nouveau avec les corrections nécessaires.`
+        : 'Votre déclaration a été rejetée. Veuillez examiner les commentaires et soumettre à nouveau avec les corrections nécessaires.';
 
     try {
         await sendNotificationToUser(

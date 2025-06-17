@@ -128,10 +128,10 @@ export const handleReviewDocument = async (req: Request, res: Response, next: Ne
         // Send notification to user about document review
         const applicantUserId = await documentService.getApplicantUserIdForDeclarationDocument(delcarationDocumentId);
         if (applicantUserId) {
-            const title = newStatus === 'verified' ? 'Document Approved' : 'Document Rejected';
+            const title = newStatus === 'verified' ? 'Document Approuvé' : 'Document Rejeté';
             const body = newStatus === 'verified' 
-                ? 'One of your documents has been approved by the admin.'
-                : `One of your documents has been rejected. Reason: ${rejectionReason || 'No reason provided'}`;
+                ? 'Un de vos documents a été approuvé par l\'administrateur.'
+                : `Un de vos documents a été rejeté. Raison: ${rejectionReason || 'Aucune raison fournie'}`;
             
             await notificationService.sendNotificationToUser(
                 applicantUserId,
@@ -399,10 +399,10 @@ export const handleApproveDeclarationWithAppointment = async (req: Request, res:
         const appointmentDateTime = new Date(`${appointment_date} ${appointment_time}`);
         await notificationService.sendNotificationToUser(
             declaration.applicant_user_id,
-            'Declaration Approved - Appointment Scheduled',
-            `Great news! Your declaration has been approved. An appointment has been scheduled for ${appointmentDateTime.toLocaleString()} at ${location}. Please bring all required documents.`,
+            'Déclaration Approuvée - Rendez-vous Planifié',
+            `Excellente nouvelle! Votre déclaration a été approuvée. Un rendez-vous a été planifié pour le ${appointmentDateTime.toLocaleDateString('fr-FR')} à ${appointmentDateTime.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'})} à ${location}. Veuillez apporter tous les documents requis.`,
             adminId,
-            'declaration_approved',
+            'appointment',
             declarationId
         );
 
@@ -510,8 +510,8 @@ export const handleApproveAllDeclarationsWithAppointments = async (req: Request,
                 const appointmentDateTime = new Date(`${default_appointment_date} ${appointmentTime}`);
                 await notificationService.sendNotificationToUser(
                     fullDeclaration.applicant_user_id,
-                    'Declaration Approved - Appointment Scheduled',
-                    `Great news! Your declaration has been approved. An appointment has been scheduled for ${appointmentDateTime.toLocaleString()} at ${default_location}. Please bring all required documents.`,
+                    'Déclaration Approuvée - Rendez-vous Planifié',
+                    `Excellente nouvelle! Votre déclaration a été approuvée. Un rendez-vous a été planifié pour le ${appointmentDateTime.toLocaleDateString('fr-FR')} à ${appointmentDateTime.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'})} à ${default_location}. Veuillez apporter tous les documents requis.`,
                     adminId,
                     'declaration_approved',
                     declaration.declaration_id

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
+    <title>Tableau de Bord Administrateur</title>
     <style>
         :root {
             --primary-color: #0C72BA;
@@ -629,12 +629,12 @@
     <div class="header">
         <div class="header-content">
             <div class="header-title">
-                <h1>Admin Dashboard</h1>
-                <span class="admin-badge">👑 Administrator</span>
+                <h1>Tableau de Bord Administrateur</h1>
+                <span class="admin-badge">👑 Administrateur</span>
             </div>
             <div class="header-actions">
-                <span id="adminName">Loading...</span>
-                <button class="logout-btn" onclick="logout()">Logout</button>
+                <span id="adminName">Chargement...</span>
+                <button class="logout-btn" onclick="logout()">Déconnexion</button>
             </div>
         </div>
     </div>
@@ -644,47 +644,47 @@
         <div class="controls">
             <div class="search-container">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="searchInput" class="search-input" placeholder="Search by name, email, or pension number...">
+                <input type="text" id="searchInput" class="search-input" placeholder="Rechercher par nom, email ou numéro de pension...">
             </div>
             <select id="statusFilter" class="filter-select">
-                <option value="">All Statuses</option>
-                <option value="submitted">Submitted</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
+                <option value="">Tous les Statuts</option>
+                <option value="submitted">Soumises</option>
+                <option value="approved">Approuvées</option>
+                <option value="rejected">Rejetées</option>
             </select>
-            <button class="refresh-btn" onclick="loadDeclarations()">🔄 Refresh</button>
-            <button class="approve-all-btn" onclick="approveAllDeclarations()">✅ Approve All</button>
+            <button class="refresh-btn" onclick="loadDeclarations()">🔄 Actualiser</button>
+            <button class="approve-all-btn" onclick="approveAllDeclarations()">✅ Tout Approuver</button>
         </div>
 
         <!-- Stats -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-number" id="totalDeclarations">0</div>
-                <div class="stat-label">Total Declarations</div>
+                <div class="stat-label">Total des Déclarations</div>
             </div>
             <div class="stat-card pending">
                 <div class="stat-number" id="pendingDeclarations">0</div>
-                <div class="stat-label">Pending Review</div>
+                <div class="stat-label">En Attente de Révision</div>
             </div>
             <div class="stat-card approved">
                 <div class="stat-number" id="approvedDeclarations">0</div>
-                <div class="stat-label">Approved</div>
+                <div class="stat-label">Approuvées</div>
             </div>
             <div class="stat-card rejected">
                 <div class="stat-number" id="rejectedDeclarations">0</div>
-                <div class="stat-label">Rejected</div>
+                <div class="stat-label">Rejetées</div>
             </div>
         </div>
 
         <!-- Declarations -->
         <div class="declarations-container">
             <div class="declarations-header">
-                <h2>📋 Declarations</h2>
+                <h2>📋 Déclarations</h2>
             </div>
             <div id="declarationsContent">
                 <div class="loading">
                     <div class="loading-spinner"></div>
-                    <p>Loading declarations...</p>
+                    <p>Chargement des déclarations...</p>
                 </div>
             </div>
         </div>
@@ -694,11 +694,11 @@
     <div id="declarationModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">Declaration Details</h2>
+                <h2 class="modal-title">Détails de la Déclaration</h2>
                 <button class="close-btn" onclick="closeModal()">&times;</button>
             </div>
             <div id="modalContent">
-                <!-- Dynamic content will be loaded here -->
+                <!-- Le contenu dynamique sera chargé ici -->
             </div>
         </div>
     </div>
@@ -707,7 +707,7 @@
     <div id="appointmentModal" class="appointment-modal">
         <div class="appointment-modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">Schedule Appointment</h2>
+                <h2 class="modal-title">Planifier un Rendez-vous</h2>
                 <button class="close-btn" onclick="closeAppointmentModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -716,21 +716,21 @@
                     <input type="date" id="appointmentDate" class="form-input">
                 </div>
                 <div class="form-group">
-                    <label for="appointmentTime" class="form-label">Time</label>
+                    <label for="appointmentTime" class="form-label">Heure</label>
                     <input type="time" id="appointmentTime" class="form-input">
                 </div>
                 <div class="form-group">
-                    <label for="appointmentLocation" class="form-label">Location</label>
-                    <input type="text" id="appointmentLocation" class="form-input" placeholder="Enter appointment location">
+                    <label for="appointmentLocation" class="form-label">Lieu</label>
+                    <input type="text" id="appointmentLocation" class="form-input" placeholder="Entrez le lieu du rendez-vous">
                 </div>
                 <div class="form-group">
                     <label for="appointmentNotes" class="form-label">Notes</label>
-                    <textarea id="appointmentNotes" class="form-textarea" placeholder="Any additional information..."></textarea>
+                    <textarea id="appointmentNotes" class="form-textarea" placeholder="Informations supplémentaires..."></textarea>
                 </div>
             </div>
             <div class="form-actions">
-                <button class="btn-cancel" onclick="closeAppointmentModal()">Cancel</button>
-                <button class="btn-submit" onclick="submitAppointment()">Schedule Appointment</button>
+                <button class="btn-cancel" onclick="closeAppointmentModal()">Annuler</button>
+                <button class="btn-submit" onclick="submitAppointment()">Planifier le Rendez-vous</button>
             </div>
         </div>
     </div>
@@ -832,8 +832,8 @@
             if (declarations.length === 0) {
                 content.innerHTML = `
                     <div class="empty-state">
-                        <h3>No declarations found</h3>
-                        <p>No declarations match your current filters.</p>
+                        <h3>Aucune déclaration trouvée</h3>
+                        <p>Aucune déclaration ne correspond à vos filtres actuels.</p>
                     </div>
                 `;
                 return;
@@ -842,13 +842,13 @@
             const declarationsHTML = declarations.map(declaration => `
                 <div class="declaration-card" onclick="viewDeclaration(${declaration.declaration_id})">
                     <div class="declaration-header">
-                        <div class="declaration-id">Declaration #${declaration.declaration_id}</div>
-                        <span class="status-badge status-${declaration.status}">${declaration.status}</span>
+                        <div class="declaration-id">Déclaration #${declaration.declaration_id}</div>
+                        <span class="status-badge status-${declaration.status}">${getStatusLabel(declaration.status)}</span>
                     </div>
                     
                     <div class="declaration-info">
                         <div class="info-item">
-                            <span class="info-label">Declarant</span>
+                            <span class="info-label">Déclarant</span>
                             <span class="info-value">${declaration.declarant_name}</span>
                         </div>
                         <div class="info-item">
@@ -856,12 +856,12 @@
                             <span class="info-value">${declaration.declarant_email}</span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">Pension Number</span>
+                            <span class="info-label">Numéro de Pension</span>
                             <span class="info-value">${declaration.decujus_pension_number || 'N/A'}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">Date</span>
-                            <span class="info-value">${new Date(declaration.declaration_date).toLocaleDateString()}</span>
+                            <span class="info-value">${new Date(declaration.declaration_date).toLocaleDateString('fr-FR')}</span>
                         </div>
                     </div>
                     
@@ -872,31 +872,28 @@
                         </div>
                         <div class="doc-stat">
                             <span class="doc-stat-number">${declaration.verified_documents}</span>
-                            <span>Verified</span>
+                            <span>Vérifiés</span>
                         </div>
                         <div class="doc-stat">
                             <span class="doc-stat-number">${declaration.pending_documents + declaration.uploaded_documents}</span>
-                            <span>Pending</span>
+                            <span>En Attente</span>
                         </div>
                         <div class="doc-stat">
                             <span class="doc-stat-number">${declaration.rejected_documents}</span>
-                            <span>Rejected</span>
+                            <span>Rejetés</span>
                         </div>
                     </div>
                     
                     <div class="declaration-actions" onclick="event.stopPropagation()">
                         <button class="action-btn btn-view" onclick="viewDeclaration(${declaration.declaration_id})">
-                            👁️ View Details
+                            👁️ Voir Détails
                         </button>
                         ${declaration.status === 'submitted' ? 
-                            `<button class="action-btn btn-approve" onclick="showApproveOptions(${declaration.declaration_id})">
-                                ✅ Approve
-                            </button>
-                            <button class="action-btn approve-with-appointment-btn" onclick="openAppointmentModal(${declaration.declaration_id})">
-                                📅 Approve with Appointment
+                            `<button class="action-btn approve-with-appointment-btn" onclick="openAppointmentModal(${declaration.declaration_id})">
+                                📅 Approuver avec Rendez-vous
                             </button>
                             <button class="action-btn btn-reject" onclick="rejectDeclaration(${declaration.declaration_id})">
-                                ❌ Reject
+                                ❌ Rejeter
                             </button>` : ''
                         }
                     </div>
@@ -908,6 +905,16 @@
                     ${declarationsHTML}
                 </div>
             `;
+        }
+
+        // Helper function to get status label in French
+        function getStatusLabel(status) {
+            const statusLabels = {
+                'submitted': 'Soumise',
+                'approved': 'Approuvée',
+                'rejected': 'Rejetée'
+            };
+            return statusLabels[status] || status;
         }
 
         // Update statistics
@@ -934,7 +941,7 @@
             const content = document.getElementById('declarationsContent');
             content.innerHTML = `
                 <div class="error-message">
-                    <strong>Error:</strong> ${message}
+                    <strong>Erreur:</strong> ${message}
                 </div>
             `;
         }
@@ -952,15 +959,15 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to load declaration details');
+                    throw new Error('Échec du chargement des détails de la déclaration');
                 }
 
                 const data = await response.json();
                 showDeclarationModal(data);
 
             } catch (error) {
-                console.error('Error loading declaration details:', error);
-                alert('Failed to load declaration details');
+                console.error('Erreur lors du chargement des détails de la déclaration:', error);
+                alert('Échec du chargement des détails de la déclaration');
             }
         }
 
@@ -973,43 +980,43 @@
                 <div class="document-item" style="border: 1px solid var(--divider-color); padding: 1rem; margin: 0.5rem 0; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                         <strong>${doc.document_name}</strong>
-                        <span class="status-badge status-${doc.status}">${doc.status}</span>
+                        <span class="status-badge status-${doc.status}">${getStatusLabel(doc.status)}</span>
                     </div>
                     <div style="font-size: 0.9rem; color: var(--gray-color);">
-                        ${doc.is_mandatory ? '🔴 Mandatory' : '⚪ Optional'} | 
-                        ${doc.uploaded_at ? `Uploaded: ${new Date(doc.uploaded_at).toLocaleString()}` : 'Not uploaded'}
+                        ${doc.is_mandatory ? '🔴 Obligatoire' : '⚪ Optionnel'} | 
+                        ${doc.uploaded_at ? `Téléchargé: ${new Date(doc.uploaded_at).toLocaleString('fr-FR')}` : 'Non téléchargé'}
                     </div>
-                    ${doc.rejection_reason ? `<div style="color: var(--error-color); font-size: 0.9rem; margin-top: 0.5rem;">Rejection reason: ${doc.rejection_reason}</div>` : ''}
+                    ${doc.rejection_reason ? `<div style="color: var(--error-color); font-size: 0.9rem; margin-top: 0.5rem;">Raison du rejet: ${doc.rejection_reason}</div>` : ''}
                     <div style="margin-top: 0.5rem;">
                         ${doc.status === 'uploaded' ? `
-                            <button class="action-btn btn-approve" onclick="reviewDocument(${doc.declaration_document_id}, 'verified')" style="margin-right: 0.5rem;">✅ Approve</button>
-                            <button class="action-btn btn-reject" onclick="reviewDocument(${doc.declaration_document_id}, 'rejected')">❌ Reject</button>
+                            <button class="action-btn btn-approve" onclick="reviewDocument(${doc.declaration_document_id}, 'verified')" style="margin-right: 0.5rem;">✅ Approuver</button>
+                            <button class="action-btn btn-reject" onclick="reviewDocument(${doc.declaration_document_id}, 'rejected')">❌ Rejeter</button>
                         ` : ''}
-                        ${doc.uploaded_file_path ? `<a href="${API_BASE_URL}${doc.uploaded_file_path}" target="_blank" style="margin-left: 0.5rem; color: var(--primary-color);">📄 View File</a>` : ''}
+                        ${doc.uploaded_file_path ? `<a href="${API_BASE_URL}${doc.uploaded_file_path}" target="_blank" style="margin-left: 0.5rem; color: var(--primary-color);">📄 Voir Fichier</a>` : ''}
                     </div>
                 </div>
             `).join('');
 
             modalContent.innerHTML = `
                 <div style="margin-bottom: 2rem;">
-                    <h3>Declaration #${data.declaration.declaration_id}</h3>
+                    <h3>Déclaration #${data.declaration.declaration_id}</h3>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
-                        <div><strong>Status:</strong> <span class="status-badge status-${data.declaration.status}">${data.declaration.status}</span></div>
-                        <div><strong>Date:</strong> ${new Date(data.declaration.declaration_date).toLocaleDateString()}</div>
-                        <div><strong>Declarant:</strong> ${data.declaration.declarant_name}</div>
+                        <div><strong>Statut:</strong> <span class="status-badge status-${data.declaration.status}">${getStatusLabel(data.declaration.status)}</span></div>
+                        <div><strong>Date:</strong> ${new Date(data.declaration.declaration_date).toLocaleDateString('fr-FR')}</div>
+                        <div><strong>Déclarant:</strong> ${data.declaration.declarant_name}</div>
                         <div><strong>Email:</strong> ${data.declaration.declarant_email}</div>
-                        <div><strong>Pension Number:</strong> ${data.declaration.decujus_pension_number || 'N/A'}</div>
-                        <div><strong>Can Approve:</strong> ${data.canApprove ? '✅ Yes' : '❌ No'}</div>
+                        <div><strong>Numéro de Pension:</strong> ${data.declaration.decujus_pension_number || 'N/A'}</div>
+                        <div><strong>Peut Approuver:</strong> ${data.canApprove ? '✅ Oui' : '❌ Non'}</div>
                     </div>
                 </div>
                 
                 <div style="margin-bottom: 2rem;">
-                    <h4>Document Statistics</h4>
+                    <h4>Statistiques des Documents</h4>
                     <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
                         <div class="doc-stat"><span class="doc-stat-number">${data.documentStats.total}</span><span>Total</span></div>
-                        <div class="doc-stat"><span class="doc-stat-number">${data.documentStats.verified}</span><span>Verified</span></div>
-                        <div class="doc-stat"><span class="doc-stat-number">${data.documentStats.pending + data.documentStats.uploaded}</span><span>Pending</span></div>
-                        <div class="doc-stat"><span class="doc-stat-number">${data.documentStats.rejected}</span><span>Rejected</span></div>
+                        <div class="doc-stat"><span class="doc-stat-number">${data.documentStats.verified}</span><span>Vérifiés</span></div>
+                        <div class="doc-stat"><span class="doc-stat-number">${data.documentStats.pending + data.documentStats.uploaded}</span><span>En Attente</span></div>
+                        <div class="doc-stat"><span class="doc-stat-number">${data.documentStats.rejected}</span><span>Rejetés</span></div>
                     </div>
                 </div>
                 
@@ -1018,10 +1025,10 @@
                     ${documentsHTML}
                 </div>
                 
-                ${data.declaration.status === 'submitted' && data.canApprove ? `
+                ${data.declaration.status === 'submitted' ? `
                     <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--divider-color);">
-                        <button class="action-btn btn-approve" onclick="approveDeclaration(${data.declaration.declaration_id})" style="margin-right: 1rem;">✅ Approve Declaration</button>
-                        <button class="action-btn btn-reject" onclick="rejectDeclaration(${data.declaration.declaration_id})">❌ Reject Declaration</button>
+                        <button class="action-btn approve-with-appointment-btn" onclick="openAppointmentModal(${data.declaration.declaration_id})">📅 Approuver avec Rendez-vous</button>
+                        <button class="action-btn btn-reject" onclick="rejectDeclaration(${data.declaration.declaration_id})" style="margin-left: 1rem;">❌ Rejeter la Déclaration</button>
                     </div>
                 ` : ''}
             `;
@@ -1050,7 +1057,7 @@
         async function reviewDocument(documentId, status) {
             let rejectionReason = '';
             if (status === 'rejected') {
-                rejectionReason = prompt('Please provide a reason for rejection:');
+                rejectionReason = prompt('Veuillez fournir une raison pour le rejet:');
                 if (!rejectionReason) return;
             }
 
@@ -1070,51 +1077,22 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to review document');
+                    throw new Error('Échec de la révision du document');
                 }
 
-                alert(`Document ${status} successfully!`);
+                alert(`Document ${status === 'verified' ? 'approuvé' : 'rejeté'} avec succès!`);
                 closeModal();
                 loadDeclarations(currentPage);
 
             } catch (error) {
-                console.error('Error reviewing document:', error);
-                alert('Failed to review document');
-            }
-        }
-
-        // Approve declaration
-        async function approveDeclaration(declarationId) {
-            if (!confirm('Are you sure you want to approve this declaration?')) return;
-
-            const token = localStorage.getItem('adminToken');
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/declarations/${declarationId}/approve`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to approve declaration');
-                }
-
-                alert('Declaration approved successfully!');
-                closeModal();
-                loadDeclarations(currentPage);
-
-            } catch (error) {
-                console.error('Error approving declaration:', error);
-                alert('Failed to approve declaration');
+                console.error('Erreur lors de la révision du document:', error);
+                alert('Échec de la révision du document');
             }
         }
 
         // Reject declaration
         async function rejectDeclaration(declarationId) {
-            const rejectionReason = prompt('Please provide a reason for rejection:');
+            const rejectionReason = prompt('Veuillez fournir une raison pour le rejet:');
             if (!rejectionReason) return;
 
             const token = localStorage.getItem('adminToken');
@@ -1132,40 +1110,29 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to reject declaration');
+                    throw new Error('Échec du rejet de la déclaration');
                 }
 
-                alert('Declaration rejected successfully!');
+                alert('Déclaration rejetée avec succès!');
                 closeModal();
                 loadDeclarations(currentPage);
 
             } catch (error) {
-                console.error('Error rejecting declaration:', error);
-                alert('Failed to reject declaration');
-            }
-        }
-
-        // Show approve options (simple approve vs approve with appointment)
-        function showApproveOptions(declarationId) {
-            if (!confirm('Do you want to approve this declaration?\n\nClick OK for simple approval, or Cancel to schedule an appointment.')) {
-                // User chose cancel, open appointment modal
-                openAppointmentModal(declarationId);
-            } else {
-                // User chose OK, do simple approval
-                approveDeclaration(declarationId);
+                console.error('Erreur lors du rejet de la déclaration:', error);
+                alert('Échec du rejet de la déclaration');
             }
         }
 
         // Approve all declarations
         async function approveAllDeclarations() {
-            if (!confirm('Are you sure you want to approve ALL pending declarations that are ready for approval? This will send notifications to all affected users.')) return;
+            if (!confirm('Êtes-vous sûr de vouloir approuver TOUTES les déclarations en attente qui sont prêtes pour approbation? Cela enverra des notifications à tous les utilisateurs concernés.')) return;
 
             const token = localStorage.getItem('adminToken');
             
             // Show loading state
             const approveAllBtn = document.querySelector('.approve-all-btn');
             const originalText = approveAllBtn.textContent;
-            approveAllBtn.textContent = '⏳ Processing...';
+            approveAllBtn.textContent = '⏳ Traitement...';
             approveAllBtn.disabled = true;
             
             try {
@@ -1178,7 +1145,7 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to approve declarations');
+                    throw new Error('Échec de l\'approbation des déclarations');
                 }
 
                 const result = await response.json();
@@ -1186,15 +1153,15 @@
                 // Show detailed results
                 let message = result.message;
                 if (result.errors && result.errors.length > 0) {
-                    message += '\n\nErrors encountered:\n' + result.errors.join('\n');
+                    message += '\n\nErreurs rencontrées:\n' + result.errors.join('\n');
                 }
                 
                 alert(message);
                 loadDeclarations(currentPage);
 
             } catch (error) {
-                console.error('Error approving all declarations:', error);
-                alert('Failed to approve declarations: ' + error.message);
+                console.error('Erreur lors de l\'approbation de toutes les déclarations:', error);
+                alert('Échec de l\'approbation des déclarations: ' + error.message);
             } finally {
                 // Reset button state
                 approveAllBtn.textContent = originalText;
@@ -1210,16 +1177,15 @@
             const notes = document.getElementById('appointmentNotes').value;
 
             if (!date || !time || !location) {
-                alert('Please fill in all required fields (date, time, and location).');
+                alert('Veuillez remplir tous les champs obligatoires (date, heure et lieu).');
                 return;
             }
 
             const token = localStorage.getItem('adminToken');
-            // Get the declaration ID from the current context (this should be set when opening the modal)
             const declarationId = window.currentDeclarationId;
 
             if (!declarationId) {
-                alert('No declaration selected. Please try again.');
+                alert('Aucune déclaration sélectionnée. Veuillez réessayer.');
                 return;
             }
 
@@ -1239,17 +1205,17 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to approve declaration with appointment');
+                    throw new Error('Échec de l\'approbation de la déclaration avec rendez-vous');
                 }
 
                 const result = await response.json();
-                alert('Declaration approved and appointment scheduled successfully!');
+                alert('Déclaration approuvée et rendez-vous planifié avec succès!');
                 closeAppointmentModal();
                 loadDeclarations(currentPage);
 
             } catch (error) {
-                console.error('Error scheduling appointment:', error);
-                alert('Failed to schedule appointment: ' + error.message);
+                console.error('Erreur lors de la planification du rendez-vous:', error);
+                alert('Échec de la planification du rendez-vous: ' + error.message);
             }
         }
 
