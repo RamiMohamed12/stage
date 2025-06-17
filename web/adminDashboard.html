@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <style>
+        :root {
+            --primary-color: #0C72BA;
+            --secondary-color: #C5DEF2;
+            --black-color: rgba(0, 0, 0, 0.54);
+            --error-color: #FF4757;
+            --success-color: #54AD8F;
+            --warning-color: #EEBB7A;
+            --subtitle-color: #3F3D56;
+            --violet-color: #6C5CE7;
+            --bg-light-color: #F7F9FD;
+            --bg-dark-blue-color: #0A5996;
+            --light-primary-color: #3D99DD;
+            --white-color: #FFFFFF;
+            --divider-color: #EAEDF2;
+            --gray-color: #959595;
+            --text-color: rgba(0, 0, 0, 0.87);
+            --border-color: #808080;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-light-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--bg-dark-blue-color));
+            color: var(--white-color);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(12, 114, 186, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .admin-badge {
+            background: var(--violet-color);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: var(--white-color);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Controls */
+        .controls {
+            background: var(--white-color);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .search-container {
+            position: relative;
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            border: 2px solid var(--divider-color);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--gray-color);
+        }
+
+        .filter-select {
+            padding: 0.75rem;
+            border: 2px solid var(--divider-color);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: var(--white-color);
+            cursor: pointer;
+        }
+
+        .refresh-btn {
+            background: var(--primary-color);
+            color: var(--white-color);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            background: var(--bg-dark-blue-color);
+        }
+
+        .approve-all-btn {
+            background: var(--success-color);
+            color: var(--white-color);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s ease;
+        }
+
+        .approve-all-btn:hover {
+            background: #45a049;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--white-color);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .stat-card.pending { border-left-color: var(--warning-color); }
+        .stat-card.approved { border-left-color: var(--success-color); }
+        .stat-card.rejected { border-left-color: var(--error-color); }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--gray-color);
+            margin-top: 0.25rem;
+        }
+
+        /* Declarations Grid */
+        .declarations-container {
+            background: var(--white-color);
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .declarations-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--light-primary-color));
+            color: var(--white-color);
+            padding: 1.5rem;
+        }
+
+        .declarations-grid {
+            display: grid;
+            gap: 1rem;
+            padding: 1.5rem;
+        }
+
+        .declaration-card {
+            background: var(--white-color);
+            border: 1px solid var(--divider-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .declaration-card:hover {
+            box-shadow: 0 4px 20px rgba(12, 114, 186, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .declaration-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .declaration-id {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-submitted { background: var(--warning-color); color: var(--white-color); }
+        .status-approved { background: var(--success-color); color: var(--white-color); }
+        .status-rejected { background: var(--error-color); color: var(--white-color); }
+
+        .declaration-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: 0.8rem;
+            color: var(--gray-color);
+            margin-bottom: 0.25rem;
+        }
+
+        .info-value {
+            font-weight: 500;
+        }
+
+        .document-stats {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .doc-stat {
+            background: var(--bg-light-color);
+            padding: 0.5rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            text-align: center;
+            min-width: 60px;
+        }
+
+        .doc-stat-number {
+            font-weight: 600;
+            display: block;
+        }
+
+        .declaration-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .action-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-view {
+            background: var(--primary-color);
+            color: var(--white-color);
+        }
+
+        .btn-approve {
+            background: var(--success-color);
+            color: var(--white-color);
+        }
+
+        .btn-reject {
+            background: var(--error-color);
+            color: var(--white-color);
+        }
+
+        .btn-disabled {
+            background: var(--gray-color);
+            color: var(--white-color);
+            cursor: not-allowed;
+        }
+
+        .action-btn:hover:not(.btn-disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Loading and Error States */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--gray-color);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--divider-color);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: rgba(255, 71, 87, 0.1);
+            color: var(--error-color);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem;
+            border-left: 4px solid var(--error-color);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--gray-color);
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1.5rem;
+        }
+
+        .pagination button {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--divider-color);
+            background: var(--white-color);
+            color: var(--text-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: var(--primary-color);
+            color: var(--white-color);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination .current-page {
+            background: var(--primary-color);
+            color: var(--white-color);
+            border-color: var(--primary-color);
+        }
+
+        /* Appointment Modal Styles */
+        .appointment-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+        }
+
+        .appointment-modal-content {
+            background: var(--white-color);
+            margin: 2rem auto;
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text-color);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--divider-color);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .form-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--divider-color);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            min-height: 100px;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+        }
+
+        .btn-cancel {
+            background: var(--gray-color);
+            color: var(--white-color);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s ease;
+        }
+
+        .btn-cancel:hover {
+            background: #7a7a7a;
+        }
+
+        .btn-submit {
+            background: var(--success-color);
+            color: var(--white-color);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s ease;
+        }
+
+        .btn-submit:hover {
+            background: #45a049;
+        }
+
+        .approve-with-appointment-btn {
+            background: var(--violet-color);
+            color: var(--white-color);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s ease;
+        }
+
+        .approve-with-appointment-btn:hover {
+            background: #5a4fcf;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 1rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-container {
+                min-width: auto;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .declaration-info {
+                grid-template-columns: 1fr;
+            }
+
+            .declaration-actions {
+                flex-wrap: wrap;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--white-color);
+            margin: 2rem auto;
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--divider-color);
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray-color);
+        }
+
+        .close-btn:hover {
+            color: var(--error-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="header-title">
+                <h1>Admin Dashboard</h1>
+                <span class="admin-badge">👑 Administrator</span>
+            </div>
+            <div class="header-actions">
+                <span id="adminName">Loading...</span>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <!-- Controls -->
+        <div class="controls">
+            <div class="search-container">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search by name, email, or pension number...">
+            </div>
+            <select id="statusFilter" class="filter-select">
+                <option value="">All Statuses</option>
+                <option value="submitted">Submitted</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+            </select>
+            <button class="refresh-btn" onclick="loadDeclarations()">🔄 Refresh</button>
+            <button class="approve-all-btn" onclick="approveAllDeclarations()">✅ Approve All</button>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalDeclarations">0</div>
+                <div class="stat-label">Total Declarations</div>
+            </div>
+            <div class="stat-card pending">
+                <div class="stat-number" id="pendingDeclarations">0</div>
+                <div class="stat-label">Pending Review</div>
+            </div>
+            <div class="stat-card approved">
+                <div class="stat-number" id="approvedDeclarations">0</div>
+                <div class="stat-label">Approved</div>
+            </div>
+            <div class="stat-card rejected">
+                <div class="stat-number" id="rejectedDeclarations">0</div>
+                <div class="stat-label">Rejected</div>
+            </div>
+        </div>
+
+        <!-- Declarations -->
+        <div class="declarations-container">
+            <div class="declarations-header">
+                <h2>📋 Declarations</h2>
+            </div>
+            <div id="declarationsContent">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading declarations...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Declaration Details Modal -->
+    <div id="declarationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Declaration Details</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modalContent">
+                <!-- Dynamic content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Appointment Scheduling Modal -->
+    <div id="appointmentModal" class="appointment-modal">
+        <div class="appointment-modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Schedule Appointment</h2>
+                <button class="close-btn" onclick="closeAppointmentModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="appointmentDate" class="form-label">Date</label>
+                    <input type="date" id="appointmentDate" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="appointmentTime" class="form-label">Time</label>
+                    <input type="time" id="appointmentTime" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="appointmentLocation" class="form-label">Location</label>
+                    <input type="text" id="appointmentLocation" class="form-input" placeholder="Enter appointment location">
+                </div>
+                <div class="form-group">
+                    <label for="appointmentNotes" class="form-label">Notes</label>
+                    <textarea id="appointmentNotes" class="form-textarea" placeholder="Any additional information..."></textarea>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn-cancel" onclick="closeAppointmentModal()">Cancel</button>
+                <button class="btn-submit" onclick="submitAppointment()">Schedule Appointment</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:3000';
+        let currentPage = 1;
+        let currentFilter = '';
+        let currentSearch = '';
+        let declarations = [];
+
+        // Authentication check
+        function checkAuth() {
+            const token = localStorage.getItem('adminToken');
+            const user = localStorage.getItem('adminUser');
+            
+            if (!token || !user) {
+                window.location.href = 'login.html';
+                return false;
+            }
+            
+            try {
+                const userData = JSON.parse(user);
+                document.getElementById('adminName').textContent = `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.email;
+            } catch (e) {
+                console.error('Error parsing user data:', e);
+                window.location.href = 'login.html';
+                return false;
+            }
+            
+            return true;
+        }
+
+        // Logout function
+        function logout() {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+            window.location.href = 'login.html';
+        }
+
+        // Load declarations
+        async function loadDeclarations(page = 1) {
+            if (!checkAuth()) return;
+
+            const token = localStorage.getItem('adminToken');
+            const status = document.getElementById('statusFilter').value;
+            const search = document.getElementById('searchInput').value;
+            
+            currentPage = page;
+            currentFilter = status;
+            currentSearch = search;
+
+            try {
+                const params = new URLSearchParams({
+                    page: page.toString(),
+                    limit: '10'
+                });
+                
+                if (status) params.append('status', status);
+                if (search) params.append('search', search);
+
+                const response = await fetch(`${API_BASE_URL}/api/admin/declarations?${params}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    logout();
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    declarations = data.data;
+                    displayDeclarations(declarations);
+                    updateStats(declarations);
+                    updatePagination(data.pagination);
+                } else {
+                    throw new Error('Failed to load declarations');
+                }
+
+            } catch (error) {
+                console.error('Error loading declarations:', error);
+                displayError('Failed to load declarations. Please try again.');
+            }
+        }
+
+        // Display declarations
+        function displayDeclarations(declarations) {
+            const content = document.getElementById('declarationsContent');
+            
+            if (declarations.length === 0) {
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No declarations found</h3>
+                        <p>No declarations match your current filters.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const declarationsHTML = declarations.map(declaration => `
+                <div class="declaration-card" onclick="viewDeclaration(${declaration.declaration_id})">
+                    <div class="declaration-header">
+                        <div class="declaration-id">Declaration #${declaration.declaration_id}</div>
+                        <span class="status-badge status-${declaration.status}">${declaration.status}</span>
+                    </div>
+                    
+                    <div class="declaration-info">
+                        <div class="info-item">
+                            <span class="info-label">Declarant</span>
+                            <span class="info-value">${declaration.declarant_name}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Email</span>
+                            <span class="info-value">${declaration.declarant_email}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Pension Number</span>
+                            <span class="info-value">${declaration.decujus_pension_number || 'N/A'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Date</span>
+                            <span class="info-value">${new Date(declaration.declaration_date).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="document-stats">
+                        <div class="doc-stat">
+                            <span class="doc-stat-number">${declaration.total_documents}</span>
+                            <span>Total</span>
+                        </div>
+                        <div class="doc-stat">
+                            <span class="doc-stat-number">${declaration.verified_documents}</span>
+                            <span>Verified</span>
+                        </div>
+                        <div class="doc-stat">
+                            <span class="doc-stat-number">${declaration.pending_documents + declaration.uploaded_documents}</span>
+                            <span>Pending</span>
+                        </div>
+                        <div class="doc-stat">
+                            <span class="doc-stat-number">${declaration.rejected_documents}</span>
+                            <span>Rejected</span>
+                        </div>
+                    </div>
+                    
+                    <div class="declaration-actions" onclick="event.stopPropagation()">
+                        <button class="action-btn btn-view" onclick="viewDeclaration(${declaration.declaration_id})">
+                            👁️ View Details
+                        </button>
+                        ${declaration.status === 'submitted' ? 
+                            `<button class="action-btn btn-approve" onclick="showApproveOptions(${declaration.declaration_id})">
+                                ✅ Approve
+                            </button>
+                            <button class="action-btn approve-with-appointment-btn" onclick="openAppointmentModal(${declaration.declaration_id})">
+                                📅 Approve with Appointment
+                            </button>
+                            <button class="action-btn btn-reject" onclick="rejectDeclaration(${declaration.declaration_id})">
+                                ❌ Reject
+                            </button>` : ''
+                        }
+                    </div>
+                </div>
+            `).join('');
+
+            content.innerHTML = `
+                <div class="declarations-grid">
+                    ${declarationsHTML}
+                </div>
+            `;
+        }
+
+        // Update statistics
+        function updateStats(declarations) {
+            const total = declarations.length;
+            const submitted = declarations.filter(d => d.status === 'submitted').length;
+            const approved = declarations.filter(d => d.status === 'approved').length;
+            const rejected = declarations.filter(d => d.status === 'rejected').length;
+
+            document.getElementById('totalDeclarations').textContent = total;
+            document.getElementById('pendingDeclarations').textContent = submitted;
+            document.getElementById('approvedDeclarations').textContent = approved;
+            document.getElementById('rejectedDeclarations').textContent = rejected;
+        }
+
+        // Update pagination
+        function updatePagination(pagination) {
+            // Simple pagination for now - can be enhanced later
+            console.log('Pagination:', pagination);
+        }
+
+        // Display error
+        function displayError(message) {
+            const content = document.getElementById('declarationsContent');
+            content.innerHTML = `
+                <div class="error-message">
+                    <strong>Error:</strong> ${message}
+                </div>
+            `;
+        }
+
+        // View declaration details
+        async function viewDeclaration(declarationId) {
+            const token = localStorage.getItem('adminToken');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/declarations/${declarationId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load declaration details');
+                }
+
+                const data = await response.json();
+                showDeclarationModal(data);
+
+            } catch (error) {
+                console.error('Error loading declaration details:', error);
+                alert('Failed to load declaration details');
+            }
+        }
+
+        // Show declaration modal
+        function showDeclarationModal(data) {
+            const modal = document.getElementById('declarationModal');
+            const modalContent = document.getElementById('modalContent');
+            
+            const documentsHTML = data.documents.map(doc => `
+                <div class="document-item" style="border: 1px solid var(--divider-color); padding: 1rem; margin: 0.5rem 0; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <strong>${doc.document_name}</strong>
+                        <span class="status-badge status-${doc.status}">${doc.status}</span>
+                    </div>
+                    <div style="font-size: 0.9rem; color: var(--gray-color);">
+                        ${doc.is_mandatory ? '🔴 Mandatory' : '⚪ Optional'} | 
+                        ${doc.uploaded_at ? `Uploaded: ${new Date(doc.uploaded_at).toLocaleString()}` : 'Not uploaded'}
+                    </div>
+                    ${doc.rejection_reason ? `<div style="color: var(--error-color); font-size: 0.9rem; margin-top: 0.5rem;">Rejection reason: ${doc.rejection_reason}</div>` : ''}
+                    <div style="margin-top: 0.5rem;">
+                        ${doc.status === 'uploaded' ? `
+                            <button class="action-btn btn-approve" onclick="reviewDocument(${doc.declaration_document_id}, 'verified')" style="margin-right: 0.5rem;">✅ Approve</button>
+                            <button class="action-btn btn-reject" onclick="reviewDocument(${doc.declaration_document_id}, 'rejected')">❌ Reject</button>
+                        ` : ''}
+                        ${doc.uploaded_file_path ? `<a href="${API_BASE_URL}${doc.uploaded_file_path}" target="_blank" style="margin-left: 0.5rem; color: var(--primary-color);">📄 View File</a>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            modalContent.innerHTML = `
+                <div style="margin-bottom: 2rem;">
+                    <h3>Declaration #${data.declaration.declaration_id}</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                        <div><strong>Status:</strong> <span class="status-badge status-${data.declaration.status}">${data.declaration.status}</span></div>
+                        <div><strong>Date:</strong> ${new Date(data.declaration.declaration_date).toLocaleDateString()}</div>
+                        <div><strong>Declarant:</strong> ${data.declaration.declarant_name}</div>
+                        <div><strong>Email:</strong> ${data.declaration.declarant_email}</div>
+                        <div><strong>Pension Number:</strong> ${data.declaration.decujus_pension_number || 'N/A'}</div>
+                        <div><strong>Can Approve:</strong> ${data.canApprove ? '✅ Yes' : '❌ No'}</div>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 2rem;">
+                    <h4>Document Statistics</h4>
+                    <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+                        <div class="doc-stat"><span class="doc-stat-number">${data.documentStats.total}</span><span>Total</span></div>
+                        <div class="doc-stat"><span class="doc-stat-number">${data.documentStats.verified}</span><span>Verified</span></div>
+                        <div class="doc-stat"><span class="doc-stat-number">${data.documentStats.pending + data.documentStats.uploaded}</span><span>Pending</span></div>
+                        <div class="doc-stat"><span class="doc-stat-number">${data.documentStats.rejected}</span><span>Rejected</span></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4>Documents</h4>
+                    ${documentsHTML}
+                </div>
+                
+                ${data.declaration.status === 'submitted' && data.canApprove ? `
+                    <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--divider-color);">
+                        <button class="action-btn btn-approve" onclick="approveDeclaration(${data.declaration.declaration_id})" style="margin-right: 1rem;">✅ Approve Declaration</button>
+                        <button class="action-btn btn-reject" onclick="rejectDeclaration(${data.declaration.declaration_id})">❌ Reject Declaration</button>
+                    </div>
+                ` : ''}
+            `;
+            
+            modal.style.display = 'block';
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('declarationModal').style.display = 'none';
+        }
+
+        // Open appointment modal
+        function openAppointmentModal(declarationId) {
+            // Set the current declaration ID for scheduling
+            window.currentDeclarationId = declarationId;
+            document.getElementById('appointmentModal').style.display = 'block';
+        }
+
+        // Close appointment modal
+        function closeAppointmentModal() {
+            document.getElementById('appointmentModal').style.display = 'none';
+        }
+
+        // Review document
+        async function reviewDocument(documentId, status) {
+            let rejectionReason = '';
+            if (status === 'rejected') {
+                rejectionReason = prompt('Please provide a reason for rejection:');
+                if (!rejectionReason) return;
+            }
+
+            const token = localStorage.getItem('adminToken');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/documents/${documentId}/review`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        newStatus: status,
+                        rejectionReason: rejectionReason
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to review document');
+                }
+
+                alert(`Document ${status} successfully!`);
+                closeModal();
+                loadDeclarations(currentPage);
+
+            } catch (error) {
+                console.error('Error reviewing document:', error);
+                alert('Failed to review document');
+            }
+        }
+
+        // Approve declaration
+        async function approveDeclaration(declarationId) {
+            if (!confirm('Are you sure you want to approve this declaration?')) return;
+
+            const token = localStorage.getItem('adminToken');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/declarations/${declarationId}/approve`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to approve declaration');
+                }
+
+                alert('Declaration approved successfully!');
+                closeModal();
+                loadDeclarations(currentPage);
+
+            } catch (error) {
+                console.error('Error approving declaration:', error);
+                alert('Failed to approve declaration');
+            }
+        }
+
+        // Reject declaration
+        async function rejectDeclaration(declarationId) {
+            const rejectionReason = prompt('Please provide a reason for rejection:');
+            if (!rejectionReason) return;
+
+            const token = localStorage.getItem('adminToken');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/declarations/${declarationId}/reject`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        rejectionReason: rejectionReason
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to reject declaration');
+                }
+
+                alert('Declaration rejected successfully!');
+                closeModal();
+                loadDeclarations(currentPage);
+
+            } catch (error) {
+                console.error('Error rejecting declaration:', error);
+                alert('Failed to reject declaration');
+            }
+        }
+
+        // Show approve options (simple approve vs approve with appointment)
+        function showApproveOptions(declarationId) {
+            if (!confirm('Do you want to approve this declaration?\n\nClick OK for simple approval, or Cancel to schedule an appointment.')) {
+                // User chose cancel, open appointment modal
+                openAppointmentModal(declarationId);
+            } else {
+                // User chose OK, do simple approval
+                approveDeclaration(declarationId);
+            }
+        }
+
+        // Approve all declarations
+        async function approveAllDeclarations() {
+            if (!confirm('Are you sure you want to approve ALL pending declarations that are ready for approval? This will send notifications to all affected users.')) return;
+
+            const token = localStorage.getItem('adminToken');
+            
+            // Show loading state
+            const approveAllBtn = document.querySelector('.approve-all-btn');
+            const originalText = approveAllBtn.textContent;
+            approveAllBtn.textContent = '⏳ Processing...';
+            approveAllBtn.disabled = true;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/declarations/approve-all`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to approve declarations');
+                }
+
+                const result = await response.json();
+                
+                // Show detailed results
+                let message = result.message;
+                if (result.errors && result.errors.length > 0) {
+                    message += '\n\nErrors encountered:\n' + result.errors.join('\n');
+                }
+                
+                alert(message);
+                loadDeclarations(currentPage);
+
+            } catch (error) {
+                console.error('Error approving all declarations:', error);
+                alert('Failed to approve declarations: ' + error.message);
+            } finally {
+                // Reset button state
+                approveAllBtn.textContent = originalText;
+                approveAllBtn.disabled = false;
+            }
+        }
+
+        // Submit appointment
+        async function submitAppointment() {
+            const date = document.getElementById('appointmentDate').value;
+            const time = document.getElementById('appointmentTime').value;
+            const location = document.getElementById('appointmentLocation').value;
+            const notes = document.getElementById('appointmentNotes').value;
+
+            if (!date || !time || !location) {
+                alert('Please fill in all required fields (date, time, and location).');
+                return;
+            }
+
+            const token = localStorage.getItem('adminToken');
+            // Get the declaration ID from the current context (this should be set when opening the modal)
+            const declarationId = window.currentDeclarationId;
+
+            if (!declarationId) {
+                alert('No declaration selected. Please try again.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/declarations/${declarationId}/approve-with-appointment`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        appointment_date: date,
+                        appointment_time: time,
+                        location: location,
+                        notes: notes
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to approve declaration with appointment');
+                }
+
+                const result = await response.json();
+                alert('Declaration approved and appointment scheduled successfully!');
+                closeAppointmentModal();
+                loadDeclarations(currentPage);
+
+            } catch (error) {
+                console.error('Error scheduling appointment:', error);
+                alert('Failed to schedule appointment: ' + error.message);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('input', debounce(() => {
+            loadDeclarations(1);
+        }, 500));
+
+        document.getElementById('statusFilter').addEventListener('change', () => {
+            loadDeclarations(1);
+        });
+
+        // Click outside modal to close
+        window.addEventListener('click', (event) => {
+            const modal = document.getElementById('declarationModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+
+        // Debounce function
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Initialize dashboard
+        window.addEventListener('load', () => {
+            if (checkAuth()) {
+                loadDeclarations();
+            }
+        });
+    </script>
+</body>
+</html>

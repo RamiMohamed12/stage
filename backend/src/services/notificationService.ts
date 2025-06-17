@@ -225,7 +225,7 @@ export const sendNotificationToUser = async (
     title: string, 
     body: string, 
     adminId: number,
-    type: 'document_review' | 'declaration_approved' | 'declaration_rejected' | 'general' = 'general',
+    type: 'document_review' | 'declaration_approved' | 'declaration_rejected' | 'appointment' | 'general' = 'general',
     relatedId?: number
 ): Promise<Notification> => {
     return await createNotification({

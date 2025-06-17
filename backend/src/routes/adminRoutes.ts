@@ -7,6 +7,40 @@ const router = express.Router();
 
 router.use(authenticateToken);
 
+// New routes for admin dashboard
+router.get(
+    '/declarations',
+    checkRole([Role.ADMIN]),
+    adminController.getAllDeclarationsForAdmin
+);
+
+router.get(
+    '/declarations/:declarationId',
+    checkRole([Role.ADMIN]),
+    adminController.getDeclarationDetails
+);
+
+// New route for bulk approval
+router.post(
+    '/declarations/approve-all',
+    checkRole([Role.ADMIN]),
+    adminController.handleApproveAllDeclarations
+);
+
+// New routes for appointment-based approvals
+router.post(
+    '/declarations/:declarationId/approve-with-appointment',
+    checkRole([Role.ADMIN]),
+    adminController.handleApproveDeclarationWithAppointment
+);
+
+router.post(
+    '/declarations/approve-all-with-appointments',
+    checkRole([Role.ADMIN]),
+    adminController.handleApproveAllDeclarationsWithAppointments
+);
+
+// Existing routes
 router.patch(
     '/documents/:declarationDocumentId/review',
     checkRole([Role.ADMIN]), 

@@ -7,6 +7,30 @@ import {Status as DeclarationStatus} from '../models/Declarations';
 import { Declaration } from 'typescript';
 import { deactivatePension } from './decujusService'; // Import deactivatePension
 
+// New interface for admin dashboard declarations with user info
+export interface AdminDeclarationView {
+    declaration_id: number;
+    applicant_user_id: number;
+    decujus_pension_number: string | null;
+    relationship_id: number;
+    death_cause_id: number | null;
+    declaration_date: Date;
+    status: DeclarationStatus;
+    created_at: Date;
+    updated_at: Date;
+    declarant_name: string;
+    declarant_email: string;
+    user_first_name: string | null;
+    user_last_name: string | null;
+    total_documents: number;
+    pending_documents: number;
+    uploaded_documents: number;
+    verified_documents: number;
+    rejected_documents: number;
+    mandatory_documents: number;
+    mandatory_verified: number;
+}
+
 export const createDeclaration = async (declaration: CreateDeclarationInput): Promise<Declarations> => {
     
     let connection: PoolConnection | undefined; 
@@ -225,4 +249,116 @@ export const getUserPendingDeclaration = async (userId: number): Promise<Declara
         }
     }
 }
+
+// New function for admin to get all declarations with user info and document stats
+export const getAllDeclarationsForAdmin = async (
+    limit: number = 10,
+    offset: number = 0,
+    status?: string,
+    search?: string
+): Promise<{ declarations: AdminDeclarationView[]; total: number }> => {
+    let connection: PoolConnection | undefined;
+    try {
+        connection = await pool.getConnection();
+        
+        // Build WHERE clause for filtering
+        let whereClause = 'WHERE 1=1';
+        const queryParams: any[] = [];
+        
+        if (status && status !== 'all') {
+            whereClause += ' AND d.status = ?';
+            queryParams.push(status);
+        }
+        
+        if (search) {
+            whereClause += ' AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR d.decujus_pension_number LIKE ?)';
+            const searchParam = `%${search}%`;
+            queryParams.push(searchParam, searchParam, searchParam, searchParam);
+        }
+        
+        // Get total count for pagination
+        const countSql = `
+            SELECT COUNT(DISTINCT d.declaration_id) as total
+            FROM declarations d
+            JOIN users u ON d.applicant_user_id = u.user_id
+            ${whereClause}
+        `;
+        
+        const [countRows] = await connection.query<RowDataPacket[]>(countSql, queryParams);
+        const total = countRows[0].total;
+        
+        // Get declarations with user info and document statistics
+        const sql = `
+            SELECT 
+                d.declaration_id,
+                d.applicant_user_id,
+                d.decujus_pension_number,
+                d.relationship_id,
+                d.death_cause_id,
+                d.declaration_date,
+                d.status,
+                d.created_at,
+                d.updated_at,
+                u.email as declarant_email,
+                u.first_name as user_first_name,
+                u.last_name as user_last_name,
+                CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) as declarant_name,
+                COUNT(dd.declaration_document_id) as total_documents,
+                COUNT(CASE WHEN dd.status = 'pending' THEN 1 END) as pending_documents,
+                COUNT(CASE WHEN dd.status = 'uploaded' THEN 1 END) as uploaded_documents,
+                COUNT(CASE WHEN dd.status = 'verified' THEN 1 END) as verified_documents,
+                COUNT(CASE WHEN dd.status = 'rejected' THEN 1 END) as rejected_documents,
+                COUNT(CASE WHEN rrd.is_mandatory = 1 THEN 1 END) as mandatory_documents,
+                COUNT(CASE WHEN rrd.is_mandatory = 1 AND dd.status = 'verified' THEN 1 END) as mandatory_verified
+            FROM declarations d
+            JOIN users u ON d.applicant_user_id = u.user_id
+            LEFT JOIN declaration_documents dd ON d.declaration_id = dd.declaration_id
+            LEFT JOIN relationship_required_documents rrd ON d.relationship_id = rrd.relationship_id AND dd.document_type_id = rrd.document_type_id
+            ${whereClause}
+            GROUP BY d.declaration_id, d.applicant_user_id, d.decujus_pension_number, d.relationship_id, 
+                     d.death_cause_id, d.declaration_date, d.status, d.created_at, d.updated_at,
+                     u.email, u.first_name, u.last_name
+            ORDER BY d.created_at DESC
+            LIMIT ? OFFSET ?
+        `;
+        
+        const [rows] = await connection.query<RowDataPacket[]>(sql, [...queryParams, limit, offset]);
+        
+        const declarations = rows.map(row => ({
+            declaration_id: row.declaration_id,
+            applicant_user_id: row.applicant_user_id,
+            decujus_pension_number: row.decujus_pension_number,
+            relationship_id: row.relationship_id,
+            death_cause_id: row.death_cause_id,
+            declaration_date: row.declaration_date,
+            status: row.status,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            declarant_name: row.declarant_name?.trim() || 'Unknown',
+            declarant_email: row.declarant_email,
+            user_first_name: row.user_first_name,
+            user_last_name: row.user_last_name,
+            total_documents: row.total_documents || 0,
+            pending_documents: row.pending_documents || 0,
+            uploaded_documents: row.uploaded_documents || 0,
+            verified_documents: row.verified_documents || 0,
+            rejected_documents: row.rejected_documents || 0,
+            mandatory_documents: row.mandatory_documents || 0,
+            mandatory_verified: row.mandatory_verified || 0
+        })) as AdminDeclarationView[];
+        
+        return {
+            declarations,
+            total
+        };
+        
+    } catch (error) {
+        console.error('[declarationService] Error in getAllDeclarationsForAdmin:', error);
+        throw new ServiceErorr('Failed to get declarations for admin', 500);
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+};
 

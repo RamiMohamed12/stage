@@ -3,7 +3,7 @@ export interface Notification {
     user_id: number;
     title: string;
     body: string;
-    type: 'document_review' | 'declaration_approved' | 'declaration_rejected' | 'general';
+    type: 'document_review' | 'declaration_approved' | 'declaration_rejected' | 'appointment' | 'general';
     related_id: number | null; // Can reference declaration_id or document_id
     is_read: boolean;
     sent_at: Date;
@@ -16,7 +16,7 @@ export interface CreateNotificationInput {
     user_id: number;
     title: string;
     body: string;
-    type?: 'document_review' | 'declaration_approved' | 'declaration_rejected' | 'general';
+    type?: 'document_review' | 'declaration_approved' | 'declaration_rejected' | 'appointment' | 'general';
     related_id?: number | null;
     created_by_admin_id?: number | null;
 }

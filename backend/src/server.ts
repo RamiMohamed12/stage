@@ -10,6 +10,7 @@ import deathCauseRoutes from './routes/deathCauseRoutes'; // Import death cause 
 import declarationRoutes from './routes/declarationRoutes'; // Import declaration routes
 import adminRoutes from './routes/adminRoutes'; // Import admin routes
 import notificationRoutes from './routes/notificationRoutes'; // Import notification routes
+import appointmentRoutes from './routes/appointmentRoutes'; // Import appointment routes
 import path from 'path'; // Import path module
 
 dotenv.config();
@@ -34,6 +35,7 @@ app.use('/api/death-causes', deathCauseRoutes);
 app.use('/api/declarations', declarationRoutes); // Add declaration routes
 app.use('/api/admin', adminRoutes); // Add admin routes
 app.use('/api/notifications', notificationRoutes); // Add notification routes
+app.use('/api/appointments', appointmentRoutes); // Add appointment routes
 
 // Test route (optional, can be removed or kept for basic checks)
 app.get('/', async (req: Request, res: Response) => {
@@ -70,6 +72,7 @@ app.listen(port, '0.0.0.0', () => {
   console.log(`Declaration routes available at http://localhost:${port}/api/declarations`); // Added log
   console.log(`Admin routes available at http://localhost:${port}/api/admin`); // Added log
   console.log(`Notification routes available at http://localhost:${port}/api/notifications`); // Added log
+  console.log(`Appointment routes available at http://localhost:${port}/api/appointments`); // Added log
 });
 
 export default app;

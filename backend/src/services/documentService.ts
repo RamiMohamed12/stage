@@ -223,38 +223,46 @@ export const updateDocumentOnUpload = async (declarationDocumentId: number, file
     }
 } 
 
-export const reviewDocument = async (declarationDocumentId: number, adminId: number, newStatus:'verified' | 'rejected', rejectionReason: string | null): Promise<void> => {
-
+export const reviewDocument = async (
+    declarationDocumentId: number, 
+    newStatus: 'verified' | 'rejected', 
+    rejectionReason: string | null, 
+    adminId: number
+): Promise<void> => {
     let connection: PoolConnection | undefined; 
-    try  {
+    try {
         connection = await pool.getConnection(); 
+        
+        if (newStatus === 'rejected' && !rejectionReason) {
+            throw new ServiceErorr('Rejection reason is required when status is "rejected".', 400);
+        }
+
+        const reasonToStore = newStatus === 'rejected' ? rejectionReason : null; 
+
         const sql = `UPDATE declaration_documents
         SET
             status = ?,
             reviewed_by_admin_id = ?,
             reviewed_at = CURRENT_TIMESTAMP,
             rejection_reason = ? 
-        WHERE declaration_document_id = ?;`
-        if (newStatus === 'rejected' && !rejectionReason) {
-            throw new ServiceErorr('Rejection reason is required when status is "rejected".', 400);
-        }
-
-        const reasonToStore = newStatus === 'rejected' ? rejectionReason: null; 
+        WHERE declaration_document_id = ?;`;
 
         const [result] = await connection.query(sql, [newStatus, adminId, reasonToStore, declarationDocumentId]);
         const affectedRows = (result as { affectedRows: number }).affectedRows;
+        
         if (affectedRows === 0) {
             throw new ServiceErorr(`No document found with ID ${declarationDocumentId}`, 404);
         }
+        
         console.log(`Document with ID ${declarationDocumentId} reviewed successfully.`);
+        
     } catch (error: any) {
         console.error('Error reviewing document:', error.message);
         if (error instanceof ServiceErorr) {
-            throw error; // Rethrow known errors
+            throw error;
         }
         throw new ServiceErorr('Error reviewing document.', 500);
-    }
-    finally {
+    } finally {
         if (connection) {
             connection.release();
         }
@@ -262,38 +270,38 @@ export const reviewDocument = async (declarationDocumentId: number, adminId: num
 }
 
 export const checkAllMandatoryDocumentsVerified = async (declarationId: number): Promise<boolean> => {
-
     let connection: PoolConnection | undefined; 
     try { 
         connection = await pool.getConnection(); 
         const sql = `SELECT 
-        (COUNT(CASE WHEN rrd.is_mandatory = 1 THEN dd.document_type_id END) = 0) OR -- Case 1: No mandatory documents exist for this relationship ( COUNT(CASE WHEN rrd.is_mandatory = 1 THEN dd.document_type_id END) > 0 AND -- Case 2: Mandatory documents exist
-            COUNT(CASE WHEN rrd.is_mandatory = 1 AND dd.status != 'verified' THEN dd.document_type_id END) = 0 -- And none of them are in a non-verified state
+        (COUNT(CASE WHEN rrd.is_mandatory = 1 THEN dd.document_type_id END) = 0) OR 
+        (COUNT(CASE WHEN rrd.is_mandatory = 1 THEN dd.document_type_id END) > 0 AND 
+            COUNT(CASE WHEN rrd.is_mandatory = 1 AND dd.status != 'verified' THEN dd.document_type_id END) = 0
         ) AS all_verified
         FROM declaration_documents dd
         JOIN declarations d ON dd.declaration_id = d.declaration_id
         JOIN relationship_required_documents rrd 
             ON d.relationship_id = rrd.relationship_id AND dd.document_type_id = rrd.document_type_id
-        WHERE dd.declaration_id = ?;`
+        WHERE dd.declaration_id = ?;`;
+        
         const [rows] = await connection.query<RowDataPacket[]>(sql, [declarationId]);
         if (rows.length === 0) {
-            console.warn(`No documents found for declaration ID ${declarationId}`); // Log if no documents found
+            console.warn(`No documents found for declaration ID ${declarationId}`);
             return false; 
         }
         const verifiedResult = (rows[0] as { all_verified: 0 | 1 }).all_verified;
         if (!verifiedResult) {
-            console.log(`Not all mandatory documents are verified for declaration ID ${declarationId}`); // Log if not all documents are verified
+            console.log(`Not all mandatory documents are verified for declaration ID ${declarationId}`);
             return false; 
         }
-        console.log(`All mandatory documents are verified for declaration ID ${declarationId}`); // Log if all documents are verified
+        console.log(`All mandatory documents are verified for declaration ID ${declarationId}`);
         return true;
     } catch (error: any) {
         console.error('Error checking mandatory documents verification:', error.message);
         if (error instanceof ServiceErorr) {
-            throw error; // Rethrow known errors
+            throw error;
         }
         throw new ServiceErorr('Error checking mandatory documents verification.', 500);
-
     } finally {
         if (connection) {
             connection.release();
