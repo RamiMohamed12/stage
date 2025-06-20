@@ -1123,6 +1123,55 @@
             }
         }
 
+        // Reject appointment
+        async function rejectAppointment(declarationId) {
+            const rejectionReason = prompt('Veuillez fournir une raison pour le rejet du rendez-vous:');
+            if (!rejectionReason) return;
+
+            const token = localStorage.getItem('adminToken');
+            
+            try {
+                // First, get the appointment ID for this declaration
+                const appointmentResponse = await fetch(`${API_BASE_URL}/api/appointments/declaration/${declarationId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!appointmentResponse.ok) {
+                    throw new Error('Aucun rendez-vous trouvé pour cette déclaration');
+                }
+
+                const appointmentData = await appointmentResponse.json();
+                const appointmentId = appointmentData.appointment_id;
+
+                // Now reject the appointment
+                const response = await fetch(`${API_BASE_URL}/api/appointments/${appointmentId}/reject`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        rejection_reason: rejectionReason
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Échec du rejet du rendez-vous');
+                }
+
+                alert('Rendez-vous rejeté avec succès! Une notification a été envoyée à l\'utilisateur.');
+                closeModal();
+                loadDeclarations(currentPage);
+
+            } catch (error) {
+                console.error('Erreur lors du rejet du rendez-vous:', error);
+                alert('Échec du rejet du rendez-vous: ' + error.message);
+            }
+        }
+
         // Approve all declarations
         async function approveAllDeclarations() {
             if (!confirm('Êtes-vous sûr de vouloir approuver TOUTES les déclarations en attente qui sont prêtes pour approbation? Cela enverra des notifications à tous les utilisateurs concernés.')) return;

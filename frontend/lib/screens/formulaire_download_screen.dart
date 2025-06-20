@@ -31,7 +31,7 @@ class _FormulaireDownloadScreenState extends State<FormulaireDownloadScreen> {
 
   final TokenService _tokenService = TokenService();
 
-  Future<void> _downloadFormulaire() async {
+  Future<void> _downloadFormulaireAndContinue() async {
     setState(() {
       _isDownloading = true;
     });
@@ -83,18 +83,17 @@ class _FormulaireDownloadScreenState extends State<FormulaireDownloadScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Formulaire téléchargé: $fileName\nEmplacement: ${directory.path}'),
+                content: Text('Formulaire téléchargé: $fileName\nRedirection vers les documents...'),
                 backgroundColor: Colors.green,
-                duration: const Duration(seconds: 5),
-                action: SnackBarAction(
-                  label: 'OK',
-                  textColor: Colors.white,
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  },
-                ),
+                duration: const Duration(seconds: 2),
               ),
             );
+            
+            // Wait a moment for the user to see the success message, then navigate
+            await Future.delayed(const Duration(seconds: 2));
+            if (mounted) {
+              _navigateToDocumentUpload();
+            }
           }
         } else {
           throw Exception('Impossible d\'accéder au répertoire de téléchargement');
@@ -202,7 +201,7 @@ class _FormulaireDownloadScreenState extends State<FormulaireDownloadScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Cliquez sur "Télécharger" pour obtenir votre formulaire pré-rempli.',
+                      'Cliquez sur "Télécharger et Continuer" pour obtenir votre formulaire pré-rempli et passer à l\'étape suivante.',
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.subTitleColor,
@@ -213,7 +212,7 @@ class _FormulaireDownloadScreenState extends State<FormulaireDownloadScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: _isDownloading ? null : _downloadFormulaire,
+                        onPressed: _isDownloading ? null : _downloadFormulaireAndContinue,
                         icon: _isDownloading
                             ? const SizedBox(
                                 width: 20,
@@ -225,7 +224,7 @@ class _FormulaireDownloadScreenState extends State<FormulaireDownloadScreen> {
                               )
                             : const Icon(Icons.download, color: AppColors.whiteColor),
                         label: Text(
-                          _isDownloading ? 'Téléchargement...' : 'Télécharger le formulaire',
+                          _isDownloading ? 'Téléchargement...' : 'Télécharger et Continuer',
                           style: const TextStyle(
                             color: AppColors.whiteColor,
                             fontSize: 16,
@@ -241,55 +240,7 @@ class _FormulaireDownloadScreenState extends State<FormulaireDownloadScreen> {
                         ),
                       ),
                     ),
-                    if (_hasDownloaded) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.green.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.check_circle, color: Colors.green),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Formulaire téléchargé! Imprimez-le, signez-le et scannez-le.',
-                                style: const TextStyle(
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _navigateToDocumentUpload,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                ),
-                child: const Text(
-                  'Continuer vers les documents',
-                  style: TextStyle(
-                    color: AppColors.whiteColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
                 ),
               ),
             ),

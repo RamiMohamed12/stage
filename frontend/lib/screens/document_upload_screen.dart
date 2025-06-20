@@ -219,6 +219,19 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         title: const Text('Documents Requis', style: TextStyle(color: AppColors.whiteColor)),
         backgroundColor: AppColors.primaryColor,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.whiteColor),
+          onPressed: () {
+            Navigator.pushReplacementNamed(
+              context,
+              '/formulaireDownload',
+              arguments: {
+                'declarationId': widget.declarationId,
+                'declarantName': widget.declarantName,
+              },
+            );
+          },
+        ),
       ),
       body: Stack(
         children: [

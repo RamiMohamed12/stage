@@ -9,6 +9,7 @@ import 'package:frontend/screens/declaration/create_declaration_screen.dart'; //
 import 'package:frontend/screens/formulaire_download_screen.dart'; // Add this import
 import 'package:frontend/screens/notification_screen.dart'; // Add notification screen import
 import 'package:frontend/screens/appointment_success_screen.dart'; // Add appointment success screen import
+import 'package:frontend/screens/appointment_reject_screen.dart'; // Add appointment reject screen import
 import 'package:frontend/constants/colors.dart';
 
 void main() {
@@ -196,6 +197,21 @@ class MyApp extends StatelessWidget {
           return AppointmentSuccessScreen(
             declarationId: args['declarationId'],
             applicantName: args['applicantName'],
+          );
+        },
+        '/appointment-reject': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+          if (args == null || !args.containsKey('declarationId')) {
+            return const Scaffold(
+              body: Center(
+                child: Text('Invalid or missing arguments for appointment rejection.'),
+              ),
+            );
+          }
+          return AppointmentRejectScreen(
+            declarationId: args['declarationId'],
+            applicantName: args['applicantName'] ?? 'Utilisateur',
+            rejectionReason: args['rejectionReason'],
           );
         },
       },

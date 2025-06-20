@@ -291,3 +291,54 @@ export const deleteAppointment = async (req: Request, res: Response, next: NextF
         next(error);
     }
 };
+
+// Reject appointment
+export const rejectAppointment = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const adminId = (req as any).user.userId;
+        const appointmentId = parseInt(req.params.appointmentId, 10);
+        const { rejection_reason } = req.body;
+
+        if (isNaN(appointmentId)) {
+            res.status(400).json({ message: 'Invalid appointment ID' });
+            return;
+        }
+
+        if (!rejection_reason || rejection_reason.trim() === '') {
+            res.status(400).json({ message: 'Rejection reason is required' });
+            return;
+        }
+
+        // Get appointment details before rejection
+        const appointment = await appointmentService.getAppointmentById(appointmentId);
+        if (!appointment) {
+            res.status(404).json({ message: 'Appointment not found' });
+            return;
+        }
+
+        // Update appointment status to cancelled
+        const updatedAppointment = await appointmentService.updateAppointment(appointmentId, { 
+            status: AppointmentStatus.CANCELLED 
+        });
+
+        // Send rejection notification to user in French
+        await notificationService.sendNotificationToUser(
+            appointment.user_id,
+            'Rendez-vous Rejeté',
+            `Votre rendez-vous prévu le ${new Date(`${appointment.appointment_date} ${appointment.appointment_time}`).toLocaleDateString('fr-FR')} à ${appointment.appointment_time} a été rejeté. Raison: ${rejection_reason}. Veuillez corriger vos documents et soumettre à nouveau.`,
+            adminId,
+            'declaration_rejected',
+            appointment.declaration_id
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Appointment rejected successfully',
+            appointment: updatedAppointment
+        });
+
+    } catch (error: unknown) {
+        console.error('Controller error during appointment rejection:', error);
+        next(error);
+    }
+};

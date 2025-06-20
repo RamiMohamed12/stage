@@ -18,6 +18,7 @@ router.patch('/:appointmentId/status', appointmentController.updateAppointmentSt
 router.post('/', checkRole([Role.ADMIN]), appointmentController.createAppointment);
 router.get('/', checkRole([Role.ADMIN]), appointmentController.getAllAppointments);
 router.put('/:appointmentId', checkRole([Role.ADMIN]), appointmentController.updateAppointment);
+router.patch('/:appointmentId/reject', checkRole([Role.ADMIN]), appointmentController.rejectAppointment);
 router.delete('/:appointmentId', checkRole([Role.ADMIN]), appointmentController.deleteAppointment);
 
 export default router;

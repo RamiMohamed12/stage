@@ -113,6 +113,21 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             final activeAppointment = await _appointmentService.getActiveAppointment();
             
             if (mounted && activeAppointment != null) {
+              // Check if the appointment is cancelled (rejected)
+              if (activeAppointment['status'] == 'cancelled') {
+                // User has a rejected appointment - redirect to rejection screen
+                Navigator.pushReplacementNamed(
+                  context, 
+                  '/appointment-reject',
+                  arguments: {
+                    'declarationId': activeAppointment['declaration_id'],
+                    'applicantName': result['data']?['user']?['first_name'] ?? 'Utilisateur',
+                    'rejectionReason': 'Votre rendez-vous a été annulé. Veuillez vérifier vos notifications pour plus de détails.',
+                  },
+                );
+                return;
+              }
+              
               // User has an active appointment - redirect to appointment success screen
               Navigator.pushReplacementNamed(
                 context, 

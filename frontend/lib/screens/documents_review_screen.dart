@@ -92,6 +92,41 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
         ),
       );
       
+      // Check for appointment rejection notifications
+      final rejectionNotification = newNotifications.firstWhere(
+        (notification) => 
+          (notification.type == 'declaration_rejected' ||
+           notification.title.toLowerCase().contains('rejeté') ||
+           notification.body.toLowerCase().contains('rejeté')) && 
+          notification.relatedId == widget.declarationId,
+        orElse: () => NotificationModel.Notification(
+          notificationId: 0,
+          userId: 0,
+          title: '',
+          body: '',
+          type: '',
+          isRead: false,
+          sentAt: DateTime.now(),
+          createdAt: DateTime.now(),
+        ),
+      );
+      
+      // If we found a rejection notification, navigate to appointment rejection screen
+      if (rejectionNotification.notificationId != 0) {
+        if (mounted) {
+          Navigator.pushReplacementNamed(
+            context,
+            '/appointment-reject',
+            arguments: {
+              'declarationId': widget.declarationId,
+              'applicantName': widget.applicantName,
+              'rejectionReason': rejectionNotification.body,
+            },
+          );
+          return;
+        }
+      }
+      
       // If we found an appointment notification for this declaration, navigate to appointment screen
       if (appointmentNotification.notificationId != 0) {
         if (mounted) {
