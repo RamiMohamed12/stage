@@ -75,6 +75,38 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
     if (result['success'] == true) {
       final newNotifications = result['notifications'] as List<NotificationModel.Notification>;
       
+      // Check for appointment notifications related to this declaration
+      final appointmentNotification = newNotifications.firstWhere(
+        (notification) => 
+          notification.type == 'appointment' && 
+          notification.relatedId == widget.declarationId,
+        orElse: () => NotificationModel.Notification(
+          notificationId: 0,
+          userId: 0,
+          title: '',
+          body: '',
+          type: '',
+          isRead: false,
+          sentAt: DateTime.now(),
+          createdAt: DateTime.now(),
+        ),
+      );
+      
+      // If we found an appointment notification for this declaration, navigate to appointment screen
+      if (appointmentNotification.notificationId != 0) {
+        if (mounted) {
+          Navigator.pushReplacementNamed(
+            context,
+            '/appointment-success',
+            arguments: {
+              'declarationId': widget.declarationId,
+              'applicantName': widget.applicantName,
+            },
+          );
+          return;
+        }
+      }
+      
       // Show push notifications for truly new notifications
       final existingIds = _notifications.map((n) => n.notificationId).toSet();
       final reallyNewNotifications = newNotifications

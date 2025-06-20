@@ -41,6 +41,17 @@ router.post(
     notificationController.sendNotificationToUser
 );
 
+router.post(
+    '/send-rejection',
+    checkRole([Role.ADMIN]),
+    notificationController.sendRejectionNotification
+);
+
+router.patch(
+    '/:notificationId/acknowledge',
+    notificationController.acknowledgeRejection
+);
+
 router.get(
     '/admin/all',
     checkRole([Role.ADMIN]),

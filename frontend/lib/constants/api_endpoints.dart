@@ -12,5 +12,6 @@ class ApiEndpoints {
   static const String deathCauses = '$baseUrl/death-causes';
   static const String declarations = '$baseUrl/declarations';
   static const String admin = '$baseUrl/admin';
-  static const String notifications = '$baseUrl/notifications';  // Add notifications endpoint
+  static const String notifications = '$baseUrl/notifications';
+  static const String appointments = '$baseUrl/appointments';  // Add appointments endpoint
 }

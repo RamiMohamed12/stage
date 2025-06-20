@@ -129,6 +129,39 @@ export const getAppointmentById = async (req: Request, res: Response, next: Next
     }
 };
 
+// Get appointment by declaration ID
+export const getAppointmentByDeclarationId = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const userId = (req as any).user.userId;
+        const userRole = (req as any).user.role;
+        const declarationId = parseInt(req.params.declarationId, 10);
+
+        if (isNaN(declarationId)) {
+            res.status(400).json({ message: 'Invalid declaration ID' });
+            return;
+        }
+
+        const appointment = await appointmentService.getAppointmentByDeclarationId(declarationId);
+        
+        if (!appointment) {
+            res.status(404).json({ message: 'No appointment found for this declaration' });
+            return;
+        }
+
+        // Check if user has permission to view this appointment
+        if (userRole !== 'admin' && appointment.user_id !== userId) {
+            res.status(403).json({ message: 'Forbidden: You do not have access to this appointment' });
+            return;
+        }
+
+        res.status(200).json(appointment);
+
+    } catch (error: unknown) {
+        console.error('Controller error during appointment by declaration retrieval:', error);
+        next(error);
+    }
+};
+
 // Update appointment
 export const updateAppointment = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -169,6 +202,51 @@ export const updateAppointment = async (req: Request, res: Response, next: NextF
 
     } catch (error: unknown) {
         console.error('Controller error during appointment update:', error);
+        next(error);
+    }
+};
+
+// Update appointment status
+export const updateAppointmentStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const userId = (req as any).user.userId;
+        const userRole = (req as any).user.role;
+        const appointmentId = parseInt(req.params.appointmentId, 10);
+        const { status } = req.body;
+
+        if (isNaN(appointmentId)) {
+            res.status(400).json({ message: 'Invalid appointment ID' });
+            return;
+        }
+
+        if (!status) {
+            res.status(400).json({ message: 'Status is required' });
+            return;
+        }
+
+        // Get appointment to check permissions
+        const appointment = await appointmentService.getAppointmentById(appointmentId);
+        if (!appointment) {
+            res.status(404).json({ message: 'Appointment not found' });
+            return;
+        }
+
+        // Check permissions - user can only update their own appointments, admin can update any
+        if (userRole !== 'admin' && appointment.user_id !== userId) {
+            res.status(403).json({ message: 'Forbidden: You do not have access to this appointment' });
+            return;
+        }
+
+        const updatedAppointment = await appointmentService.updateAppointment(appointmentId, { status });
+
+        res.status(200).json({
+            success: true,
+            message: 'Appointment status updated successfully',
+            appointment: updatedAppointment
+        });
+
+    } catch (error: unknown) {
+        console.error('Controller error during appointment status update:', error);
         next(error);
     }
 };

@@ -10,7 +10,9 @@ router.use(authenticateToken);
 
 // User routes
 router.get('/user', appointmentController.getUserAppointments);
+router.get('/declaration/:declarationId', appointmentController.getAppointmentByDeclarationId);
 router.get('/:appointmentId', appointmentController.getAppointmentById);
+router.patch('/:appointmentId/status', appointmentController.updateAppointmentStatus);
 
 // Admin routes
 router.post('/', checkRole([Role.ADMIN]), appointmentController.createAppointment);

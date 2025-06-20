@@ -8,6 +8,7 @@ import 'package:frontend/screens/documents_review_screen.dart'; // Add this impo
 import 'package:frontend/screens/declaration/create_declaration_screen.dart'; // Add this import
 import 'package:frontend/screens/formulaire_download_screen.dart'; // Add this import
 import 'package:frontend/screens/notification_screen.dart'; // Add notification screen import
+import 'package:frontend/screens/appointment_success_screen.dart'; // Add appointment success screen import
 import 'package:frontend/constants/colors.dart';
 
 void main() {
@@ -20,7 +21,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Decujus Declaration App',
-      theme: ThemeData(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData( 
         primaryColor: AppColors.primaryColor,
         scaffoldBackgroundColor: AppColors.bgLightColor,
         colorScheme: ColorScheme.fromSwatch().copyWith(
@@ -178,6 +180,20 @@ class MyApp extends StatelessWidget {
             );
           }
           return DocumentsReviewScreen(
+            declarationId: args['declarationId'],
+            applicantName: args['applicantName'],
+          );
+        },
+        '/appointment-success': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+          if (args == null || !args.containsKey('declarationId')) {
+            return const Scaffold(
+              body: Center(
+                child: Text('Invalid or missing arguments for appointment success.'),
+              ),
+            );
+          }
+          return AppointmentSuccessScreen(
             declarationId: args['declarationId'],
             applicantName: args['applicantName'],
           );

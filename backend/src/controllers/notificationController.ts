@@ -203,3 +203,73 @@ export const getAllNotifications = async (req: Request, res: Response, next: Nex
         }
     }
 };
+
+// ADMIN ONLY: Send rejection notification with acknowledgment capability
+export const sendRejectionNotification = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const authenticatedUser = req.user as JwtPayload;
+        const adminId = authenticatedUser.userId;
+        
+        const { user_id, title, body, type = 'rejection', related_id, rejection_reason } = req.body;
+
+        if (!user_id || !title || !body) {
+            res.status(400).json({ message: 'user_id, title, and body are required.' });
+            return;
+        }
+
+        const notification = await notificationService.sendRejectionNotification(
+            user_id,
+            title,
+            body,
+            adminId,
+            type,
+            related_id,
+            rejection_reason
+        );
+
+        res.status(201).json({
+            message: 'Rejection notification sent successfully.',
+            notification
+        });
+
+    } catch (error: unknown) {
+        if (error instanceof ServiceErorr) {
+            res.status(error.statusCode).json({ message: error.message });
+        } else if (error instanceof Error) {
+            console.error("Send Rejection Notification Error:", error);
+            res.status(500).json({ message: "Failed to send rejection notification.", error: error.message });
+        } else {
+            console.error("Send Rejection Notification Error (Unknown):", error);
+            res.status(500).json({ message: "An unknown error occurred while sending rejection notification." });
+        }
+    }
+};
+
+// Acknowledge rejection notification
+export const acknowledgeRejection = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const authenticatedUser = req.user as JwtPayload;
+        const userId = authenticatedUser.userId;
+        const notificationId = parseInt(req.params.notificationId);
+        const { acknowledgment_message } = req.body;
+
+        if (isNaN(notificationId)) {
+            res.status(400).json({ message: 'Invalid notification ID.' });
+            return;
+        }
+
+        await notificationService.acknowledgeRejection(notificationId, userId, acknowledgment_message);
+        res.status(200).json({ message: 'Rejection acknowledged successfully.' });
+
+    } catch (error: unknown) {
+        if (error instanceof ServiceErorr) {
+            res.status(error.statusCode).json({ message: error.message });
+        } else if (error instanceof Error) {
+            console.error("Acknowledge Rejection Error:", error);
+            res.status(500).json({ message: "Failed to acknowledge rejection.", error: error.message });
+        } else {
+            console.error("Acknowledge Rejection Error (Unknown):", error);
+            res.status(500).json({ message: "An unknown error occurred while acknowledging rejection." });
+        }
+    }
+};

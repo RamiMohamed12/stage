@@ -65,6 +65,8 @@ class Notification {
         return 'Déclaration approuvée';
       case 'declaration_rejected':
         return 'Déclaration rejetée';
+      case 'appointment':
+        return 'Rendez-vous planifié';
       case 'general':
       default:
         return 'Général';

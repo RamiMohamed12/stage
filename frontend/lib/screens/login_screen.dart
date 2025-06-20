@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/widgets/loading_indicator.dart'; // Import the custom loading indicator
 import '../services/auth_service.dart';
 import '../services/declaration_service.dart'; // Add this import
+import '../services/appointment_service.dart'; // Add this import
 import '../constants/colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -18,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   final _formKey = GlobalKey<FormState>();
   final AuthService _authService = AuthService();
   final DeclarationService _declarationService = DeclarationService(); // Add this
+  final AppointmentService _appointmentService = AppointmentService(); // Add this
   String _email = '';
   String _password = '';
   String _error = '';
@@ -105,6 +107,27 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         final token = result['data']?['token'];
         if (token != null && mounted) {
           await _saveEmail(_email);
+          
+          // Check for active appointments first
+          try {
+            final activeAppointment = await _appointmentService.getActiveAppointment();
+            
+            if (mounted && activeAppointment != null) {
+              // User has an active appointment - redirect to appointment success screen
+              Navigator.pushReplacementNamed(
+                context, 
+                '/appointment-success',
+                arguments: {
+                  'declarationId': activeAppointment['declaration_id'],
+                  'applicantName': result['data']?['user']?['first_name'] ?? 'Utilisateur',
+                },
+              );
+              return;
+            }
+          } catch (appointmentError) {
+            // If checking appointments fails, continue with normal flow
+            print('Warning: Failed to check active appointments: $appointmentError');
+          }
           
           // Check for pending declarations after successful login
           try {

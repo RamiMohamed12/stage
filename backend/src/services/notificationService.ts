@@ -168,7 +168,7 @@ export const getUserNotificationStats = async (userId: number): Promise<Notifica
             `SELECT 
                 COUNT(*) as total,
                 SUM(CASE WHEN is_read = FALSE THEN 1 ELSE 0 END) as unread,
-                SUM(CASE WHEN is_read = TRUE THEN 1 ELSE 0 END) as read
+                SUM(CASE WHEN is_read = TRUE THEN 1 ELSE 0 END) as \`read\`
              FROM notifications 
              WHERE user_id = ?`,
             [userId]
@@ -359,5 +359,74 @@ export const sendDeclarationRejectedNotification = async (
         );
     } catch (error) {
         console.error('Failed to send declaration rejected notification:', error);
+    }
+};
+
+// Send rejection notification with acknowledgment capability
+export const sendRejectionNotification = async (
+    targetUserId: number, 
+    title: string, 
+    body: string, 
+    adminId: number,
+    type: 'document_review' | 'declaration_approved' | 'declaration_rejected' | 'appointment' | 'general' = 'declaration_rejected',
+    relatedId?: number,
+    rejectionReason?: string
+): Promise<Notification> => {
+    // Create enhanced body with rejection reason if provided
+    const enhancedBody = rejectionReason 
+        ? `${body}\n\nRaison du rejet: ${rejectionReason}`
+        : body;
+
+    return await createNotification({
+        user_id: targetUserId,
+        title,
+        body: enhancedBody,
+        type,
+        related_id: relatedId || null,
+        created_by_admin_id: adminId
+    });
+};
+
+// Acknowledge rejection notification
+export const acknowledgeRejection = async (
+    notificationId: number, 
+    userId: number, 
+    acknowledgmentMessage?: string
+): Promise<void> => {
+    let connection: PoolConnection | undefined;
+
+    try {
+        connection = await pool.getConnection();
+        
+        // First verify the notification belongs to the user and is a rejection type
+        const [notificationRows] = await connection.execute<RowDataPacket[]>(
+            'SELECT * FROM notifications WHERE notification_id = ? AND user_id = ? AND type IN (?, ?)',
+            [notificationId, userId, 'declaration_rejected', 'document_review']
+        );
+
+        if (notificationRows.length === 0) {
+            throw new ServiceErorr('Notification not found or unauthorized.', 404);
+        }
+
+        // Mark as read and add acknowledgment timestamp
+        await connection.execute<ResultSetHeader>(
+            'UPDATE notifications SET is_read = TRUE, read_at = NOW() WHERE notification_id = ?',
+            [notificationId]
+        );
+
+        // If acknowledgment message provided, we could store it in a separate table
+        // For now, we'll just mark it as acknowledged by marking as read
+        console.log(`Rejection notification ${notificationId} acknowledged by user ${userId}${acknowledgmentMessage ? ` with message: ${acknowledgmentMessage}` : ''}`);
+
+    } catch (error: any) {
+        console.error('Error acknowledging rejection:', error);
+        if (error instanceof ServiceErorr) {
+            throw error;
+        }
+        throw new ServiceErorr('Failed to acknowledge rejection.', 500);
+    } finally {
+        if (connection) {
+            connection.release();
+        }
     }
 };
