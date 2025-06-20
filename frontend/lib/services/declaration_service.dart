@@ -63,10 +63,6 @@ class DeclarationService {
     if (response.statusCode == 201 || response.statusCode == 200) {
       // Handle both new declarations (201) and existing declarations (200)
       return jsonDecode(response.body) as Map<String, dynamic>;
-    } else if (response.statusCode == 409) {
-      // Handle conflict - another user's declaration exists
-      final errorBody = jsonDecode(response.body);
-      throw Exception(errorBody['message'] ?? 'Declaration already exists for another user.');
     } else if (response.statusCode == 400) {
       final errorBody = jsonDecode(response.body);
       throw Exception(errorBody['message'] ?? 'Failed to create declaration due to invalid input.');

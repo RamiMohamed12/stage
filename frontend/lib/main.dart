@@ -9,7 +9,7 @@ import 'package:frontend/screens/declaration/create_declaration_screen.dart'; //
 import 'package:frontend/screens/formulaire_download_screen.dart'; // Add this import
 import 'package:frontend/screens/notification_screen.dart'; // Add notification screen import
 import 'package:frontend/screens/appointment_success_screen.dart'; // Add appointment success screen import
-import 'package:frontend/screens/appointment_reject_screen.dart'; // Add appointment reject screen import
+import 'package:frontend/screens/rejection_screen.dart';
 import 'package:frontend/constants/colors.dart';
 
 void main() {
@@ -155,14 +155,6 @@ class MyApp extends StatelessWidget {
               declarationId: args['declarationId'],
               declarantName: args['declarantName'],
             );
-          } else if (args.containsKey('documents')) {
-            // Old format: declarationId + documents list
-            // Convert to new format by extracting declarant name if available
-            final documents = args['documents'] as List<dynamic>? ?? [];
-            return DocumentUploadScreen(
-              declarationId: args['declarationId'],
-              declarantName: args['declarantName'] ?? 'Déclarant inconnu',
-            );
           } else {
             // Fallback - minimal parameters
             return DocumentUploadScreen(
@@ -208,9 +200,25 @@ class MyApp extends StatelessWidget {
               ),
             );
           }
-          return AppointmentRejectScreen(
+          // Since we removed AppointmentRejectScreen, redirect to the generic rejection screen
+          return RejectionScreen(
             declarationId: args['declarationId'],
             applicantName: args['applicantName'] ?? 'Utilisateur',
+            rejectionReason: args['rejectionReason'],
+          );
+        },
+        '/rejection': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+          if (args == null || !args.containsKey('declarationId')) {
+            return const Scaffold(
+              body: Center(
+                child: Text('Invalid or missing arguments for rejection screen.'),
+              ),
+            );
+          }
+          return RejectionScreen(
+            declarationId: args['declarationId'],
+            applicantName: args['applicantName'],
             rejectionReason: args['rejectionReason'],
           );
         },

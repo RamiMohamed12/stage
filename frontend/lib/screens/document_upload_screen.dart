@@ -58,6 +58,16 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   }
 
   Future<void> _pickFile(int declarationDocumentId) async {
+    final document = _documents.firstWhere((d) => d.declarationDocumentId == declarationDocumentId);
+
+    // Allow picking a file only if the document is not yet approved.
+    if (document.status == DocumentStatus.approved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ce document a déjà été approuvé et ne peut pas être modifié.')),
+      );
+      return;
+    }
+
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -67,6 +77,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       if (result != null && result.files.single.path != null) {
         setState(() {
           _selectedFiles[declarationDocumentId] = File(result.files.single.path!);
+          // Reset error message when a file is picked
+          _errorMessage = null;
         });
       }
     } catch (e) {
@@ -107,45 +119,185 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     } catch (e) {
       setState(() {
         _uploadingStatus[declarationDocumentId] = false;
-        _errorMessage = e.toString();
+        _errorMessage = 'Erreur lors de l\'upload du document: $e';
       });
     }
   }
 
-  Future<void> _uploadAllFiles() async {
-    // Get all selected files that haven't been uploaded yet
-    final filesToUpload = <int>[];
-    
-    for (final entry in _selectedFiles.entries) {
-      if (entry.value != null) {
-        final document = _documents.firstWhere(
-          (doc) => doc.declarationDocumentId == entry.key,
-          orElse: () => throw Exception('Document not found')
-        );
-        // Only upload if document is still pending or rejected
-        if (document.status == DocumentStatus.pending || document.status == DocumentStatus.rejected) {
-          filesToUpload.add(entry.key);
-        }
-      }
-    }
+  Future<void> _uploadAllDocuments() async {
+    final mandatoryDocuments = _documents.where((d) => d.isMandatory).toList();
+    final missingDocuments = mandatoryDocuments.where((d) {
+      final isPending = d.status == DocumentStatus.pending || d.status == DocumentStatus.rejected;
+      final noFileSelected = _selectedFiles[d.declarationDocumentId] == null;
+      return isPending && noFileSelected;
+    }).toList();
 
-    if (filesToUpload.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Aucun fichier à télécharger'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+    if (missingDocuments.isNotEmpty) {
+      setState(() {
+        _errorMessage = 'Veuillez sélectionner tous les documents obligatoires.';
+      });
       return;
     }
 
-    // Upload all files sequentially
-    for (final documentId in filesToUpload) {
-      await _uploadDocument(documentId);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      for (final entry in _selectedFiles.entries) {
+        await _uploadDocument(entry.key);
+      }
+
+      // Check for any upload errors before navigating
+      if (_errorMessage == null) {
+        Navigator.pushReplacementNamed(
+          context,
+          '/documents-review',
+          arguments: {
+            'declarationId': widget.declarationId,
+            'applicantName': widget.declarantName,
+          },
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
-  Color _getStatusColor(DocumentStatus status) {
+  bool _canUploadAll() {
+    final mandatoryDocuments = _documents.where((d) => d.isMandatory).toList();
+    if (mandatoryDocuments.isEmpty) return _selectedFiles.isNotEmpty;
+
+    return mandatoryDocuments.every((d) {
+      // Can upload if the document is already approved or uploaded
+      if (d.status == DocumentStatus.approved || d.status == DocumentStatus.uploaded) {
+        return true;
+      }
+      // Or if a file has been selected for it
+      return _selectedFiles.containsKey(d.declarationDocumentId);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Fournir les Documents', style: TextStyle(color: AppColors.whiteColor)),
+        backgroundColor: AppColors.primaryColor,
+        elevation: 0,
+      ),
+      body: Stack(
+        children: [
+          Container(
+            color: AppColors.bgLightColor,
+            padding: const EdgeInsets.all(20.0),
+            child: _isLoading && _documents.isEmpty
+                ? const SizedBox()
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Déclaration pour: ${widget.declarantName}',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryColor,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Veuillez fournir les documents requis. Les champs marqués d\'une * sont obligatoires.',
+                        style: TextStyle(fontSize: 16, color: AppColors.subTitleColor),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: _documents.length,
+                          itemBuilder: (context, index) {
+                            final document = _documents[index];
+                            final isFileSelected = _selectedFiles.containsKey(document.declarationDocumentId);
+                            final isUploading = _uploadingStatus[document.declarationDocumentId] ?? false;
+                            final canSelectFile = document.status != DocumentStatus.approved;
+
+                            return Card(
+                              elevation: 2,
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                leading: isUploading
+                                    ? const CircularProgressIndicator()
+                                    : Icon(
+                                        _getStatusIcon(document.status, isFileSelected),
+                                        color: _getStatusColor(document.status, isFileSelected),
+                                      ),
+                                title: Text.rich(
+                                  TextSpan(
+                                    text: document.documentName,
+                                    children: [
+                                      if (document.isMandatory)
+                                        const TextSpan(
+                                          text: ' *',
+                                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                                        ),
+                                    ],
+                                  ),
+                                  style: const TextStyle(fontWeight: FontWeight.w500),
+                                ),
+                                subtitle: Text(
+                                  _getStatusText(document.status, isFileSelected, document.rejectionReason),
+                                  style: TextStyle(color: _getStatusColor(document.status, isFileSelected)),
+                                ),
+                                trailing: canSelectFile
+                                    ? TextButton(
+                                        onPressed: () => _pickFile(document.declarationDocumentId),
+                                        child: Text(isFileSelected ? 'Changer' : 'Choisir'),
+                                      )
+                                    : null,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          _errorMessage!,
+                          style: TextStyle(color: AppColors.errorColor, fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: _canUploadAll() ? _uploadAllDocuments : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryColor,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          disabledBackgroundColor: AppColors.primaryColor.withOpacity(0.5),
+                        ),
+                        child: const Text('Tout Uploader et Continuer', style: TextStyle(color: AppColors.whiteColor)),
+                      ),
+                    ],
+                  ),
+          ),
+          if (_isLoading && _documents.isNotEmpty)
+            const LoadingIndicator(),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(DocumentStatus status, bool isFileSelected) {
+    if (isFileSelected) return Colors.blue;
     switch (status) {
       case DocumentStatus.pending:
         return Colors.orange;
@@ -158,340 +310,31 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     }
   }
 
-  String _getStatusText(DocumentStatus status) {
+  String _getStatusText(DocumentStatus status, bool isFileSelected, String? rejectionReason) {
+    if (isFileSelected) return 'Prêt à uploader';
     switch (status) {
       case DocumentStatus.pending:
-        return 'En attente';
+        return 'En attente de document';
       case DocumentStatus.uploaded:
-        return 'Uploadé'; // Changed from 'Téléchargé'
+        return 'En révision';
       case DocumentStatus.approved:
         return 'Approuvé';
       case DocumentStatus.rejected:
-        return 'Rejeté';
+        return 'Rejeté: ${rejectionReason ?? 'Raison non spécifiée'}';
     }
   }
 
-  IconData _getStatusIcon(DocumentStatus status) {
+  IconData _getStatusIcon(DocumentStatus status, bool isFileSelected) {
+    if (isFileSelected) return Icons.attach_file;
     switch (status) {
       case DocumentStatus.pending:
         return Icons.schedule;
       case DocumentStatus.uploaded:
-        return Icons.cloud_upload;
+        return Icons.visibility;
       case DocumentStatus.approved:
         return Icons.check_circle;
       case DocumentStatus.rejected:
-        return Icons.error;
+        return Icons.cancel;
     }
-  }
-
-  bool _canNavigateNext() {
-    final mandatoryDocs = _documents.where((doc) => doc.isMandatory);
-    return mandatoryDocs.every((doc) => 
-      doc.status == DocumentStatus.uploaded || 
-      doc.status == DocumentStatus.approved
-    );
-  }
-
-  void _navigateToNext() {
-    if (_canNavigateNext()) {
-      Navigator.pushReplacementNamed(
-        context,
-        '/documents-review',
-        arguments: {
-          'declarationId': widget.declarationId,
-          'applicantName': widget.declarantName,
-        },
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Veuillez télécharger tous les documents obligatoires'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Documents Requis', style: TextStyle(color: AppColors.whiteColor)),
-        backgroundColor: AppColors.primaryColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.whiteColor),
-          onPressed: () {
-            Navigator.pushReplacementNamed(
-              context,
-              '/formulaireDownload',
-              arguments: {
-                'declarationId': widget.declarationId,
-                'declarantName': widget.declarantName,
-              },
-            );
-          },
-        ),
-      ),
-      body: Stack(
-        children: [
-          Container(
-            color: AppColors.bgLightColor,
-            padding: const EdgeInsets.all(16.0),
-            child: _isLoading
-                ? const SizedBox()
-                : Column(
-                    children: [
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Déclaration pour: ${widget.declarantName}',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Veuillez télécharger tous les documents requis ci-dessous:',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: AppColors.subTitleColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Expanded(
-                        child: RefreshIndicator(
-                          onRefresh: _loadDocuments,
-                          color: AppColors.primaryColor,
-                          child: ListView.builder(
-                            itemCount: _documents.length,
-                            itemBuilder: (context, index) {
-                              final document = _documents[index];
-                              final isUploading = _uploadingStatus[document.declarationDocumentId] ?? false;
-                              final selectedFile = _selectedFiles[document.declarationDocumentId];
-
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // Document header
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  document.documentName,
-                                                  style: const TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Row(
-                                                  children: [
-                                                    Icon(
-                                                      _getStatusIcon(document.status),
-                                                      color: _getStatusColor(document.status),
-                                                      size: 16,
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Expanded( // Wrap the status Text with Expanded
-                                                      child: Text(
-                                                        _getStatusText(document.status),
-                                                        style: TextStyle(
-                                                          color: _getStatusColor(document.status),
-                                                          fontWeight: FontWeight.w500,
-                                                        ),
-                                                        overflow: TextOverflow.ellipsis, // Optional: handle very long text
-                                                        maxLines: 2, // Optional: allow wrapping up to 2 lines
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          // Mandatory indicator
-                                          if (document.isMandatory)
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: Colors.red.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(12),
-                                                border: Border.all(color: Colors.red.withOpacity(0.3)),
-                                              ),
-                                              child: const Text(
-                                                'OBLIGATOIRE',
-                                                style: TextStyle(
-                                                  color: Colors.red,
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                      
-                                      // Rejection reason if applicable
-                                      if (document.rejectionReason != null) ...[
-                                        const SizedBox(height: 8),
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: Colors.red.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              const Icon(Icons.info, color: Colors.red, size: 16),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: Text(
-                                                  'Motif de rejet: ${document.rejectionReason}',
-                                                  style: const TextStyle(color: Colors.red, fontSize: 12),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                      
-                                      const SizedBox(height: 12),
-                                      
-                                      // File selection and display
-                                      if (document.status == DocumentStatus.pending || document.status == DocumentStatus.rejected) ...[
-                                        if (selectedFile != null) ...[
-                                          Container(
-                                            padding: const EdgeInsets.all(8),
-                                            decoration: BoxDecoration(
-                                              color: Colors.blue.withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                const Icon(Icons.insert_drive_file, color: Colors.blue),
-                                                const SizedBox(width: 8),
-                                                Expanded(
-                                                  child: Text(
-                                                    selectedFile.path.split('/').last,
-                                                    style: const TextStyle(color: Colors.blue),
-                                                  ),
-                                                ),
-                                                IconButton(
-                                                  icon: const Icon(Icons.close, color: Colors.red),
-                                                  onPressed: () {
-                                                    setState(() {
-                                                      _selectedFiles[document.declarationDocumentId] = null;
-                                                    });
-                                                  },
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ] else ...[
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: OutlinedButton.icon(
-                                              onPressed: () => _pickFile(document.declarationDocumentId),
-                                              icon: const Icon(Icons.attach_file),
-                                              label: const Text('Sélectionner un fichier'),
-                                              style: OutlinedButton.styleFrom(
-                                                foregroundColor: AppColors.primaryColor,
-                                                side: BorderSide(color: AppColors.primaryColor),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ] else if (document.status == DocumentStatus.approved) ...[
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: Colors.green.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: const Row(
-                                            children: [
-                                              Icon(Icons.check_circle, color: Colors.green),
-                                              SizedBox(width: 8),
-                                              Text(
-                                                'Document approuvé',
-                                                style: TextStyle(color: Colors.green),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      
-                      // Bottom buttons
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _canNavigateNext() ? () => _uploadAllFiles().then((_) => _navigateToNext()) : null,
-                          icon: const Icon(Icons.upload_file, color: AppColors.whiteColor), // Ensure icon color contrasts with button
-                          label: const Text(
-                            'Tout Uploader et Continuer', // Changed button text
-                            style: TextStyle(color: AppColors.whiteColor, fontSize: 16), // Ensure text color contrasts
-                            textAlign: TextAlign.center, // Center align text
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryColor,
-                            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20), // Adjusted padding
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            disabledBackgroundColor: AppColors.primaryColor.withOpacity(0.5),
-                            textStyle: const TextStyle( // Added textStyle here for consistency
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            )
-                          ),
-                        ),
-                      ),
-                      
-                      if (_errorMessage != null) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.errorColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(color: AppColors.errorColor),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-          ),
-          if (_isLoading) const LoadingIndicator(),
-        ],
-      ),
-    );
   }
 }

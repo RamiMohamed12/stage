@@ -4,11 +4,13 @@ class DecujusVerificationResult {
   final bool success;
   final String message;
   final Decujus? decujus; // Nullable if verification fails or decujus not found
+  final bool isPensionDeactivated; // New field to indicate if pension was previously deactivated
 
   DecujusVerificationResult({
     required this.success,
     required this.message,
     this.decujus,
+    this.isPensionDeactivated = false, // Default to false for backward compatibility
   });
 
   factory DecujusVerificationResult.fromJson(Map<String, dynamic> json) {
@@ -18,6 +20,8 @@ class DecujusVerificationResult {
       decujus: json['decujus'] != null && json['decujus'] is Map<String, dynamic>
           ? Decujus.fromJson(json['decujus'] as Map<String, dynamic>)
           : null,
+      isPensionDeactivated: json['is_pension_deactivated'] == true || 
+          (json['decujus'] != null && json['decujus']['is_pension_active'] == false),
     );
   }
 }

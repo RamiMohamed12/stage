@@ -92,12 +92,10 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
         ),
       );
       
-      // Check for appointment rejection notifications
-      final rejectionNotification = newNotifications.firstWhere(
+      // Check for any rejection notification related to this declaration
+      final anyRejectionNotification = newNotifications.firstWhere(
         (notification) => 
-          (notification.type == 'declaration_rejected' ||
-           notification.title.toLowerCase().contains('rejeté') ||
-           notification.body.toLowerCase().contains('rejeté')) && 
+          notification.type == 'declaration_rejected' && 
           notification.relatedId == widget.declarationId,
         orElse: () => NotificationModel.Notification(
           notificationId: 0,
@@ -111,16 +109,43 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
         ),
       );
       
-      // If we found a rejection notification, navigate to appointment rejection screen
-      if (rejectionNotification.notificationId != 0) {
+      // Show push notifications for truly new notifications
+      final existingIds = _notifications.map((n) => n.notificationId).toSet();
+      final reallyNewNotifications = newNotifications
+          .where((n) => !existingIds.contains(n.notificationId))
+          .toList();
+      
+      // Show push notifications for ALL new notifications, including document reviews
+      for (final notification in reallyNewNotifications) {
+        await _notificationService.showPushNotification(
+          title: notification.title,
+          body: notification.body,
+          type: notification.type,
+          payload: {
+            'notification_id': notification.notificationId.toString(),
+            'type': notification.type,
+            'related_id': notification.relatedId?.toString() ?? '',
+          },
+        );
+      }
+      
+      if (reallyNewNotifications.isNotEmpty) {
+        setState(() {
+          _notifications = newNotifications;
+        });
+        _loadNotificationStats();
+      }
+      
+      // If there's a rejection notification, navigate to the rejection screen
+      if (anyRejectionNotification.notificationId != 0) {
         if (mounted) {
           Navigator.pushReplacementNamed(
             context,
-            '/appointment-reject',
+            '/rejection',
             arguments: {
               'declarationId': widget.declarationId,
               'applicantName': widget.applicantName,
-              'rejectionReason': rejectionNotification.body,
+              'rejectionReason': anyRejectionNotification.body,
             },
           );
           return;
@@ -140,31 +165,6 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
           );
           return;
         }
-      }
-      
-      // Show push notifications for truly new notifications
-      final existingIds = _notifications.map((n) => n.notificationId).toSet();
-      final reallyNewNotifications = newNotifications
-          .where((n) => !existingIds.contains(n.notificationId))
-          .toList();
-      
-      for (final notification in reallyNewNotifications) {
-        await _notificationService.showPushNotification(
-          title: notification.title,
-          body: notification.body,
-          type: notification.type,
-          payload: {
-            'notification_id': notification.notificationId.toString(),
-            'type': notification.type,
-          },
-        );
-      }
-      
-      if (reallyNewNotifications.isNotEmpty) {
-        setState(() {
-          _notifications = newNotifications;
-        });
-        _loadNotificationStats();
       }
     }
   }
@@ -422,14 +422,14 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
               onPressed: () {
                 Navigator.pushReplacementNamed(
                   context,
-                  '/documents-upload',
+                  '/documentUpload',
                   arguments: {
                     'declarationId': widget.declarationId,
-                    'documents': _documents.map((doc) => doc.toJson()).toList(),
+                    'declarantName': widget.applicantName,
                   },
                 );
               },
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.edit_document),
               label: const Text('Corriger les documents'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
@@ -485,32 +485,6 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
           ),
           const SizedBox(height: 12),
         ],
-        
-        // Add documents button (for optional documents)
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () {
-              Navigator.pushNamed(
-                context,
-                '/documents-upload',
-                arguments: {
-                  'declarationId': widget.declarationId,
-                  'documents': _documents.map((doc) => doc.toJson()).toList(),
-                  'returnToReview': true,
-                },
-              );
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Ajouter/Modifier documents'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.blue,
-              side: const BorderSide(color: Colors.blue),
-              padding: const EdgeInsets.symmetric(vertical: 15),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
         
         SizedBox(
           width: double.infinity,

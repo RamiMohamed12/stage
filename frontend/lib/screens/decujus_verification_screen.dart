@@ -120,13 +120,14 @@ class _DecujusVerificationScreenState extends State<DecujusVerificationScreen>
         _verificationResult = result;
         if (result['exists'] == true && result['data'] != null) {
           _verifiedDecujus = Decujus.fromJson(result['data'] as Map<String, dynamic>);
-          if (_verifiedDecujus!.isPensionActive) {
-            _showDeclarationForm = true;
-            _fetchDeclarationDropdownData(); // Fetch data needed for the declaration
-          } else {
-            // Pension is not active, meaning decujus might have been declared already or other reasons
-            _verificationResult!['message'] = 'Ce decujus a déjà été déclaré ou la pension est inactive. Vérification des documents...';
-            // TODO: Later, navigate to document status/upload screen
+          
+          // Always allow verification to proceed to declaration form
+          _showDeclarationForm = true;
+          _fetchDeclarationDropdownData(); // Fetch data needed for the declaration
+          
+          if (!_verifiedDecujus!.isPensionActive) {
+            // Update message for inactive pension but still allow declaration
+            _verificationResult!['message'] = 'Ce decujus a été trouvé mais sa pension a été désactivée car il a déjà été déclaré précédemment. Vous pouvez toujours procéder à une nouvelle déclaration.';
           }
         }
         _isLoading = false;
@@ -518,11 +519,11 @@ class _DecujusVerificationScreenState extends State<DecujusVerificationScreen>
               ),
 
             // Declaration Form Section
-            if (_showDeclarationForm && _verifiedDecujus != null && _verifiedDecujus!.isPensionActive)
+            if (_showDeclarationForm && _verifiedDecujus != null)
               _buildDeclarationForm(),
 
             // Form for pension number input
-            if (!_showDeclarationForm || _verifiedDecujus == null || !_verifiedDecujus!.isPensionActive)
+            if (!_showDeclarationForm || _verifiedDecujus == null)
             Form(
               key: _formKey,
               child: Column(

@@ -174,36 +174,26 @@ export const checkExistingDeclaration = async (pensionNumber: string, userId: nu
     let connection: PoolConnection | undefined;
     try {
         connection = await pool.getConnection();
-        const sql = `SELECT * FROM declarations WHERE decujus_pension_number = ? ORDER BY created_at DESC LIMIT 1`;
-        const [rows] = await connection.query<RowDataPacket[]>(sql, [pensionNumber]);
+        const sql = `SELECT * FROM declarations WHERE decujus_pension_number = ? AND applicant_user_id = ? ORDER BY created_at DESC LIMIT 1`;
+        const [rows] = await connection.query<RowDataPacket[]>(sql, [pensionNumber, userId]);
         
         if (rows.length === 0) {
             return {
                 exists: false,
                 canCreateNew: true,
-                message: 'No existing declaration found. You can create a new declaration.'
+                message: 'No existing declaration found for this user. You can create a new declaration.'
             };
         }
         
         const existingDeclaration = rows[0] as Declarations;
         
-        // Check if the existing declaration belongs to the same user
-        if (existingDeclaration.applicant_user_id === userId) {
-            return {
-                exists: true,
-                declaration: existingDeclaration,
-                canCreateNew: false,
-                message: 'You have an existing declaration for this pension number. Redirecting to document upload.'
-            };
-        } else {
-            // Different user has already declared for this pension number
-            return {
-                exists: true,
-                declaration: existingDeclaration,
-                canCreateNew: false,
-                message: 'A declaration already exists for this pension number by another user.'
-            };
-        }
+        // User has an existing declaration for this pension number
+        return {
+            exists: true,
+            declaration: existingDeclaration,
+            canCreateNew: false,
+            message: 'You have an existing declaration for this pension number. Redirecting to document upload.'
+        };
         
     } catch (error) {
         console.error('[declarationService] Error in checkExistingDeclaration:', error);
