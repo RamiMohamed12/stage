@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/constants/colors.dart';
 import 'package:frontend/services/token_service.dart';
+import 'package:frontend/widgets/loading_indicator.dart';
+import 'package:frontend/screens/decujus_verification_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 import 'dart:io';
@@ -145,102 +147,160 @@ class _FormulaireDownloadScreenState extends State<FormulaireDownloadScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Formulaire à télécharger', style: TextStyle(color: AppColors.whiteColor)),
-        backgroundColor: AppColors.primaryColor,
-        elevation: 0,
-      ),
-      body: Container(
-        color: AppColors.bgLightColor,
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Card(
+      backgroundColor: AppColors.bgLightColor,
+      body: Stack(
+        children: [
+          // Background Gradient (same as other screens)
+          Container(
+            height: MediaQuery.of(context).size.height * 0.35,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [AppColors.primaryColor, AppColors.bgDarkBlueColor],
+              ),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(40),
+                bottomRight: Radius.circular(40),
+              ),
+            ),
+          ),
+          // Main Content
+          SafeArea(
+            child: SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Déclaration pour: ${widget.declarantName}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Téléchargez le formulaire pré-rempli, imprimez-le, signez-le et scannez-le pour le télécharger ensuite.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.subTitleColor,
-                      ),
-                    ),
+                    const SizedBox(height: 20),
+                    _buildHeader(),
+                    const SizedBox(height: 40),
+                    _buildDownloadCard(),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.description,
-                      size: 80,
-                      color: AppColors.primaryColor,
+          ),
+          // Loading Indicator Overlay
+          if (_isDownloading)
+            const LoadingIndicator(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back, color: AppColors.whiteColor, size: 28),
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DecujusVerificationScreen(
+                      agencyId: 0, // You may need to pass the actual agency ID if available
+                      agencyName: 'Agence', // You may need to pass the actual agency name if available
                     ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Formulaire de déclaration',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Cliquez sur "Télécharger et Continuer" pour obtenir votre formulaire pré-rempli et passer à l\'étape suivante.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.subTitleColor,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _isDownloading ? null : _downloadFormulaireAndContinue,
-                        icon: _isDownloading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.whiteColor,
-                                ),
-                              )
-                            : const Icon(Icons.download, color: AppColors.whiteColor),
-                        label: Text(
-                          _isDownloading ? 'Téléchargement...' : 'Télécharger et Continuer',
-                          style: const TextStyle(
-                            color: AppColors.whiteColor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                  ),
+                );
+              },
+            ),
+            const Spacer(),
+          ],
+        ),
+        const SizedBox(height: 20),
+        const Icon(
+          Icons.visibility,
+          color: Colors.white,
+          size: 64,
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          "Télécharger le Formulaire",
+          style: TextStyle(
+            color: AppColors.whiteColor,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          widget.declarantName,
+          style: TextStyle(
+            color: AppColors.whiteColor.withOpacity(0.8),
+            fontSize: 16,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDownloadCard() {
+    return Card(
+      elevation: 8,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              "Télécharger le Formulaire",
+              style: TextStyle(
+                color: AppColors.subTitleColor,
+                fontSize: 0,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Téléchargez le formulaire pré-rempli pour votre déclaration",
+              style: TextStyle(
+                color: AppColors.grayColor,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            
+            // Keep the original button exactly as it was
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isDownloading ? null : _downloadFormulaireAndContinue,
+                icon: _isDownloading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.whiteColor,
                         ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryColor,
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                      )
+                    : const Icon(Icons.download, color: AppColors.whiteColor),
+                label: Text(
+                  _isDownloading ? 'Téléchargement...' : 'Télécharger et Continuer',
+                  style: const TextStyle(
+                    color: AppColors.whiteColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
                 ),
               ),
             ),

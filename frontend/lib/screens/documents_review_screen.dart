@@ -269,142 +269,336 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
     }
   }
 
-  Widget _buildStatusCard() {
+  IconData _getReviewStatusIcon() {
+    final color = _getReviewStatusColor();
+    if (color == Colors.green) return Icons.verified_user;
+    if (color == Colors.red) return Icons.error_outline;
+    if (color == Colors.blue) return Icons.visibility;
+    return Icons.schedule;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bgLightColor,
+      body: Stack(
+        children: [
+          // Background Gradient (same as formulaire_download_screen)
+          Container(
+            height: MediaQuery.of(context).size.height * 0.35,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [AppColors.primaryColor, AppColors.bgDarkBlueColor],
+              ),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(40),
+                bottomRight: Radius.circular(40),
+              ),
+            ),
+          ),
+          // Main Content
+          SafeArea(
+            child: _isLoading
+                ? const SizedBox()
+                : RefreshIndicator(
+                    onRefresh: _loadDocuments,
+                    color: AppColors.primaryColor,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 20),
+                            _buildHeader(),
+                            const SizedBox(height: 40),
+                            _buildReviewCard(),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
+          if (_isLoading)
+            const LoadingIndicator(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            const Spacer(),
+            // Notification button with badge
+            Stack(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+                    onPressed: () => Navigator.pushNamed(context, '/notifications'),
+                    tooltip: 'Notifications',
+                  ),
+                ),
+                if (_notificationStats != null && _notificationStats!.unread > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '${_notificationStats!.unread}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 8),
+            // Logout button
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.logout, color: Colors.white),
+                onPressed: _logout,
+                tooltip: 'Déconnexion',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Icon(
+          _getReviewStatusIcon(),
+          color: Colors.white,
+          size: 64,
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          "Révision des Documents",
+          style: TextStyle(
+            color: AppColors.whiteColor,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          widget.applicantName ?? 'Déclaration #${widget.declarationId}',
+          style: TextStyle(
+            color: AppColors.whiteColor.withOpacity(0.8),
+            fontSize: 16,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReviewCard() {
     return Card(
-      elevation: 4,
+      elevation: 8,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _getReviewStatusColor().withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                _getReviewStatusColor() == Colors.green 
-                  ? Icons.check_circle 
-                  : _getReviewStatusColor() == Colors.red
-                    ? Icons.error
-                    : Icons.schedule,
-                size: 48,
-                color: _getReviewStatusColor(),
-              ),
-            ),
-            const SizedBox(height: 16),
             Text(
               _getReviewStatus(),
               style: TextStyle(
-                fontSize: 20,
+                color: AppColors.subTitleColor,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: _getReviewStatusColor(),
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              widget.applicantName != null 
-                ? 'Déclaration pour: ${widget.applicantName}'
-                : 'Déclaration ID: ${widget.declarationId}',
+              "État actuel de vos documents",
               style: TextStyle(
-                fontSize: 16,
-                color: AppColors.subTitleColor,
+                color: AppColors.grayColor,
+                fontSize: 14,
               ),
               textAlign: TextAlign.center,
             ),
-            if (_lastRefresh != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Dernière mise à jour: ${_formatTime(_lastRefresh!)}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.subTitleColor,
+            const SizedBox(height: 24),
+
+            // Error Display
+            if (_errorMessage != null) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.errorColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                textAlign: TextAlign.center,
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: AppColors.errorColor, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          color: AppColors.errorColor,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
+
+            // Documents List - styled like instruction steps
+            if (_documents.isNotEmpty) ...[
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _documents.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 16),
+                itemBuilder: (context, index) {
+                  final document = _documents[index];
+                  return _buildDocumentStep(document, index + 1);
+                },
+              ),
+              const SizedBox(height: 32),
+            ],
+
+            // Action Buttons
+            _buildActionButtons(),
           ],
         ),
       ),
     );
   }
 
-  String _formatTime(DateTime time) {
-    final now = DateTime.now();
-    final difference = now.difference(time);
-    
-    if (difference.inSeconds < 60) {
-      return 'Il y a ${difference.inSeconds} secondes';
-    } else if (difference.inMinutes < 60) {
-      return 'Il y a ${difference.inMinutes} minutes';
-    } else {
-      return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-    }
-  }
-
-  Widget _buildDocumentsList() {
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'État des documents',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+  Widget _buildDocumentStep(DeclarationDocument document, int stepNumber) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: AppColors.bgLightColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderColor.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: _getStatusColor(document.status),
+              borderRadius: BorderRadius.circular(20),
             ),
-            const SizedBox(height: 16),
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _documents.length,
-              separatorBuilder: (context, index) => const Divider(),
-              itemBuilder: (context, index) {
-                final document = _documents[index];
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    backgroundColor: _getStatusColor(document.status).withOpacity(0.2),
-                    child: Icon(
-                      _getStatusIcon(document.status),
-                      color: _getStatusColor(document.status),
-                      size: 20,
-                    ),
-                  ),
-                  title: Text(
-                    document.documentName,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_getStatusText(document.status)),
-                      if (document.rejectionReason != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Motif: ${document.rejectionReason}',
+            child: Center(
+              child: document.status == DocumentStatus.approved
+                  ? const Icon(Icons.check, color: Colors.white, size: 20)
+                  : document.status == DocumentStatus.rejected
+                      ? const Icon(Icons.close, color: Colors.white, size: 20)
+                      : Text(
+                          stepNumber.toString(),
                           style: const TextStyle(
-                            color: Colors.red,
-                            fontSize: 12,
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ],
-                    ],
-                  ),
-                  trailing: document.isMandatory
-                    ? const Icon(Icons.star, color: Colors.red, size: 16)
-                    : null,
-                );
-              },
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 16),
+          Icon(
+            _getStatusIcon(document.status),
+            color: _getStatusColor(document.status),
+            size: 24,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        document.documentName,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textColor,
+                        ),
+                      ),
+                    ),
+                    if (document.isMandatory)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Obligatoire',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _getStatusText(document.status),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _getStatusColor(document.status),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (document.rejectionReason != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Motif: ${document.rejectionReason}',
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -429,41 +623,25 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
                   },
                 );
               },
-              icon: const Icon(Icons.edit_document),
-              label: const Text('Corriger les documents'),
+              icon: const Icon(Icons.edit_document, color: AppColors.whiteColor),
+              label: const Text(
+                'Corriger les Documents',
+                style: TextStyle(
+                  color: AppColors.whiteColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 12),
-        ],
-        
-        // Manual refresh button
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _isLoading ? null : () => _loadDocuments(),
-            icon: _isLoading 
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.refresh),
-            label: const Text('Actualiser'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primaryColor,
-              side: BorderSide(color: AppColors.primaryColor),
-              padding: const EdgeInsets.symmetric(vertical: 15),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        
-        if (allApproved) ...[
+        ] else if (allApproved) ...[
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -474,166 +652,52 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
                   (route) => false,
                 );
               },
-              icon: const Icon(Icons.check_circle),
-              label: const Text('Nouvelle déclaration'),
+              icon: const Icon(Icons.add_circle, color: AppColors.whiteColor),
+              label: const Text(
+                'Nouvelle Déclaration',
+                style: TextStyle(
+                  color: AppColors.whiteColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
+                backgroundColor: AppColors.primaryColor,
                 padding: const EdgeInsets.symmetric(vertical: 15),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-        
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _logout,
-            icon: const Icon(Icons.logout),
-            label: const Text('Se déconnecter'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primaryColor,
-              side: BorderSide(color: AppColors.primaryColor),
-              padding: const EdgeInsets.symmetric(vertical: 15),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Documents sous révision',
-          style: TextStyle(color: AppColors.whiteColor),
-        ),
-        backgroundColor: AppColors.primaryColor,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        actions: [
-          // Notification button with badge
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications, color: AppColors.whiteColor),
-                tooltip: 'Notifications',
-                onPressed: () {
-                  Navigator.pushNamed(context, '/notifications');
-                },
-              ),
-              if (_notificationStats != null && _notificationStats!.unread > 0)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
-                    ),
-                    child: Text(
-                      '${_notificationStats!.unread}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          if (_shouldAutoRefresh())
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.autorenew,
-                        size: 16,
-                        color: AppColors.whiteColor,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Auto',
-                        style: TextStyle(
-                          color: AppColors.whiteColor,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
                 ),
               ),
             ),
-        ],
-      ),
-      body: Stack(
-        children: [
+          ),
+        ] else ...[
           Container(
-            color: AppColors.bgLightColor,
-            child: _isLoading
-                ? const SizedBox()
-                : RefreshIndicator(
-                    onRefresh: _loadDocuments,
-                    color: AppColors.primaryColor,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildStatusCard(),
-                          const SizedBox(height: 20),
-                          
-                          if (_documents.isNotEmpty) ...[
-                            _buildDocumentsList(),
-                            const SizedBox(height: 20),
-                          ],
-                          
-                          _buildActionButtons(),
-                          
-                          if (_errorMessage != null) ...[
-                            const SizedBox(height: 20),
-                            Card(
-                              color: Colors.red.withOpacity(0.1),
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Text(
-                                  _errorMessage!,
-                                  style: const TextStyle(color: Colors.red),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Vos documents sont en cours de révision. Vous serez notifié du résultat.',
+                    style: TextStyle(
+                      color: Colors.blue.shade700,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
+                ),
+              ],
+            ),
           ),
-          
-          if (_isLoading)
-            const LoadingIndicator(),
         ],
-      ),
+      ],
     );
   }
 

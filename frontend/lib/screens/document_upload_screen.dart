@@ -5,6 +5,7 @@ import 'package:frontend/models/document.dart';
 import 'package:frontend/services/document_service.dart';
 import 'package:frontend/constants/colors.dart';
 import 'package:frontend/widgets/loading_indicator.dart';
+import 'package:frontend/screens/formulaire_download_screen.dart';
 
 class DocumentUploadScreen extends StatefulWidget {
   final int declarationId;
@@ -184,114 +185,398 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Fournir les Documents', style: TextStyle(color: AppColors.whiteColor)),
-        backgroundColor: AppColors.primaryColor,
-        elevation: 0,
-      ),
+      backgroundColor: AppColors.bgLightColor,
       body: Stack(
         children: [
+          // Background Gradient (same as other screens)
           Container(
-            color: AppColors.bgLightColor,
-            padding: const EdgeInsets.all(20.0),
-            child: _isLoading && _documents.isEmpty
-                ? const SizedBox()
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        'Déclaration pour: ${widget.declarantName}',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryColor,
+            height: MediaQuery.of(context).size.height * 0.35,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [AppColors.primaryColor, AppColors.bgDarkBlueColor],
+              ),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(40),
+                bottomRight: Radius.circular(40),
+              ),
+            ),
+          ),
+          // Main Content
+          SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 20),
+                    _buildHeader(),
+                    const SizedBox(height: 40),
+                    _buildDocumentsCard(),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Loading Indicator Overlay
+          if (_isLoading)
+            const LoadingIndicator(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back, color: AppColors.whiteColor, size: 28),
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => FormulaireDownloadScreen(
+                      declarationId: widget.declarationId,
+                      declarantName: widget.declarantName,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const Spacer(),
+          ],
+        ),
+        const SizedBox(height: 20),
+        const Icon(
+          Icons.upload_file,
+          color: Colors.white,
+          size: 64,
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          "Documents Requis",
+          style: TextStyle(
+            color: AppColors.whiteColor,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          widget.declarantName,
+          style: TextStyle(
+            color: AppColors.whiteColor.withOpacity(0.8),
+            fontSize: 16,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDocumentsCard() {
+    return Card(
+      elevation: 8,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Instructions",
+              style: TextStyle(
+                color: AppColors.subTitleColor,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Sélectionnez et téléchargez vos documents. Les champs avec * sont obligatoires.",
+              style: TextStyle(
+                color: AppColors.grayColor,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Error Display
+            if (_errorMessage != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.errorColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: AppColors.errorColor, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          color: AppColors.errorColor,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
                         ),
-                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Documents List
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _documents.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final document = _documents[index];
+                return _buildDocumentItem(document);
+              },
+            ),
+
+            const SizedBox(height: 32),
+
+            // Upload All Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _canUploadAll() ? _uploadAllDocuments : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  disabledBackgroundColor: AppColors.primaryColor.withOpacity(0.5),
+                ),
+                icon: const Icon(Icons.cloud_upload, size: 20),
+                label: const Text(
+                  'Uploader et Continuer',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDocumentItem(DeclarationDocument document) {
+    final isFileSelected = _selectedFiles.containsKey(document.declarationDocumentId);
+    final isUploading = _uploadingStatus[document.declarationDocumentId] ?? false;
+    final canSelectFile = document.status != DocumentStatus.approved;
+
+    return GestureDetector(
+      onTap: canSelectFile ? () => _pickFile(document.declarationDocumentId) : null,
+      child: Container(
+        padding: const EdgeInsets.all(20.0),
+        decoration: BoxDecoration(
+          color: canSelectFile ? Colors.white : AppColors.bgLightColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isFileSelected 
+                ? Colors.blue 
+                : _getStatusColor(document.status, isFileSelected).withOpacity(0.3),
+            width: isFileSelected ? 2 : 1,
+          ),
+          boxShadow: canSelectFile ? [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              spreadRadius: 0,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ] : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                // Status/Upload Icon
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(document.status, isFileSelected).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: isUploading
+                      ? const Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          _getStatusIcon(document.status, isFileSelected),
+                          color: _getStatusColor(document.status, isFileSelected),
+                          size: 24,
+                        ),
+                ),
+                const SizedBox(width: 16),
+                // Document Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text.rich(
+                        TextSpan(
+                          text: document.documentName,
+                          children: [
+                            if (document.isMandatory)
+                              const TextSpan(
+                                text: ' *',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                          ],
+                        ),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textColor,
+                          height: 1.4,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.visible,
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Veuillez fournir les documents requis. Les champs marqués d\'une * sont obligatoires.',
-                        style: TextStyle(fontSize: 16, color: AppColors.subTitleColor),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 20),
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: _documents.length,
-                          itemBuilder: (context, index) {
-                            final document = _documents[index];
-                            final isFileSelected = _selectedFiles.containsKey(document.declarationDocumentId);
-                            final isUploading = _uploadingStatus[document.declarationDocumentId] ?? false;
-                            final canSelectFile = document.status != DocumentStatus.approved;
-
-                            return Card(
-                              elevation: 2,
-                              margin: const EdgeInsets.symmetric(vertical: 8),
-                              child: ListTile(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                leading: isUploading
-                                    ? const CircularProgressIndicator()
-                                    : Icon(
-                                        _getStatusIcon(document.status, isFileSelected),
-                                        color: _getStatusColor(document.status, isFileSelected),
-                                      ),
-                                title: Text.rich(
-                                  TextSpan(
-                                    text: document.documentName,
-                                    children: [
-                                      if (document.isMandatory)
-                                        const TextSpan(
-                                          text: ' *',
-                                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                                        ),
-                                    ],
-                                  ),
-                                  style: const TextStyle(fontWeight: FontWeight.w500),
-                                ),
-                                subtitle: Text(
-                                  _getStatusText(document.status, isFileSelected, document.rejectionReason),
-                                  style: TextStyle(color: _getStatusColor(document.status, isFileSelected)),
-                                ),
-                                trailing: canSelectFile
-                                    ? TextButton(
-                                        onPressed: () => _pickFile(document.declarationDocumentId),
-                                        child: Text(isFileSelected ? 'Changer' : 'Choisir'),
-                                      )
-                                    : null,
-                              ),
-                            );
-                          },
+                        _getStatusText(document.status, isFileSelected, document.rejectionReason),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _getStatusColor(document.status, isFileSelected),
+                          fontWeight: FontWeight.w500,
                         ),
-                      ),
-                      if (_errorMessage != null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          _errorMessage!,
-                          style: TextStyle(color: AppColors.errorColor, fontSize: 14),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: _canUploadAll() ? _uploadAllDocuments : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryColor,
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          disabledBackgroundColor: AppColors.primaryColor.withOpacity(0.5),
-                        ),
-                        child: const Text('Tout Uploader et Continuer', style: TextStyle(color: AppColors.whiteColor)),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
-          ),
-          if (_isLoading && _documents.isNotEmpty)
-            const LoadingIndicator(),
-        ],
+                ),
+                // Action Indicator
+                if (canSelectFile)
+                  Icon(
+                    isFileSelected ? Icons.edit : Icons.add_circle_outline,
+                    color: isFileSelected ? Colors.orange : AppColors.primaryColor,
+                    size: 24,
+                  ),
+              ],
+            ),
+            
+            // Selected File Display
+            if (isFileSelected) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Icon(
+                        Icons.attach_file,
+                        color: Colors.blue,
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Fichier sélectionné',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            _selectedFiles[document.declarationDocumentId]!.path.split('/').last,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.blue,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
+            // Tap to select hint for empty files
+            if (!isFileSelected && canSelectFile) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: AppColors.primaryColor.withOpacity(0.2),
+                    style: BorderStyle.solid,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.touch_app,
+                      size: 14,
+                      color: AppColors.primaryColor.withOpacity(0.7),
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Toucher pour choisir',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.primaryColor.withOpacity(0.8),
+                          fontStyle: FontStyle.italic,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
