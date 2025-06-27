@@ -53,6 +53,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_native_splash: ^2.3.9
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -97,6 +98,22 @@ flutter:
   # see https://flutter.dev/to/font-from-package
   assets:
     - assets/lottie/loading_animation.json
-    - assets/lottie/success_animation.json # Added success animation
-    - assets/lottie/error_animation.json # Added error animation
+    - assets/lottie/success_animation.json
+    - assets/lottie/error_animation.json
     - assets/logos/e_retraite.png
+
+# Native splash screen configuration
+flutter_native_splash:
+  color: "#ffffff"
+  image: assets/logos/e_retraite.png
+  android: true
+  ios: true
+  fullscreen: true
+  android_gravity: center
+  ios_content_mode: center
+  android_12:
+    image: assets/logos/e_retraite.png
+    color: "#ffffff"
+    icon_background_color: "#ffffff"
+  branding: assets/logos/e_retraite.png
+  branding_mode: bottom
