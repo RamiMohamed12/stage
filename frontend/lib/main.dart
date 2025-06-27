@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:frontend/screens/login_screen.dart'; // Make sure LoginScreen is imported
 import 'package:frontend/screens/agency_selection_screen.dart';
 import 'package:frontend/screens/signup_screen.dart';
@@ -14,6 +15,19 @@ import 'package:frontend/constants/colors.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Suppress the mouse tracker assertion error (known Flutter desktop bug)
+  FlutterError.onError = (FlutterErrorDetails details) {
+    if (details.exception.toString().contains('MouseTracker._shouldMarkStateDirty') ||
+        details.exception.toString().contains('PointerAddedEvent') ||
+        details.exception.toString().contains('PointerRemovedEvent')) {
+      // Ignore this specific Flutter framework bug
+      return;
+    }
+    // For other errors, use the default handler
+    FlutterError.presentError(details);
+  };
+  
   runApp(const MyApp());
 }
 

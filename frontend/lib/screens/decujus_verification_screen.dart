@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // For TextInputFormatter
 import 'package:frontend/models/death_cause.dart';
 import 'package:frontend/models/decujus.dart';
 import 'package:frontend/models/relationship.dart';
@@ -262,6 +263,343 @@ class _DecujusVerificationScreenState extends State<DecujusVerificationScreen>
     }
   }
 
+  Widget _buildVerificationResultCard() {
+    if (_verificationResult == null) return const SizedBox.shrink();
+    
+    final bool exists = _verificationResult!['exists'] == true;
+    final bool isPensionActive = _verifiedDecujus?.isPensionActive ?? true;
+    
+    if (!exists) {
+      // Show comprehensive not found screen
+      return _buildNotFoundCard();
+    }
+    
+    // Determine the card color and status based on verification result and pension status
+    Color cardColor;
+    Color textColor;
+    Color borderColor;
+    IconData statusIcon;
+    String statusTitle;
+    String statusMessage;
+    
+    if (!isPensionActive) {
+      // Decujus found but pension already deactivated (previously declared)
+      cardColor = Colors.orange.withOpacity(0.1);
+      textColor = Colors.orange.shade700;
+      borderColor = Colors.orange;
+      statusIcon = Icons.history;
+      statusTitle = "Décès déjà déclaré";
+      statusMessage = "Ce décès a déjà été déclaré précédemment. La pension a été désactivée. Vous pouvez toujours procéder à une nouvelle déclaration si nécessaire.";
+    } else {
+      // Decujus found and pension is active (new declaration)
+      cardColor = Colors.green.withOpacity(0.1);
+      textColor = Colors.green.shade700;
+      borderColor = Colors.green;
+      statusIcon = Icons.verified_user;
+      statusTitle = "Décès confirmé - Nouveau";
+      statusMessage = "Enregistrement trouvé et pension active. Vous pouvez procéder à la déclaration de décès.";
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header section with status
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: borderColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(statusIcon, color: borderColor, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        statusTitle,
+                        style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        statusMessage,
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Decujus details section
+          if (_verifiedDecujus != null) ...[
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              height: 1,
+              color: borderColor.withOpacity(0.3),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Informations du défunt",
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoRow(Icons.person, "Nom complet", 
+                    "${_verifiedDecujus!.firstName} ${_verifiedDecujus!.lastName}".trim(),
+                    textColor),
+                  if (_verifiedDecujus!.dateOfBirth.isNotEmpty)
+                    _buildInfoRow(Icons.cake, "Date de naissance", 
+                      _formatDate(_verifiedDecujus!.dateOfBirth), textColor),
+                  _buildInfoRow(Icons.credit_card, "Numéro de pension", 
+                    _verifiedDecujus!.pensionNumber, textColor),
+                  _buildInfoRow(
+                    isPensionActive ? Icons.check_circle : Icons.cancel,
+                    "Statut de la pension",
+                    isPensionActive ? "Active" : "Désactivée",
+                    isPensionActive ? Colors.green.shade700 : Colors.orange.shade700,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotFoundCard() {
+    return Card(
+      elevation: 8,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.red.withOpacity(0.3), width: 1.5),
+        ),
+        child: Column(
+        children: [
+          // Header with icon and title
+          Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.search_off,
+                    size: 48,
+                    color: Colors.red.shade600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Décès non enregistré",
+                  style: TextStyle(
+                    color: Colors.red.shade700,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "Numéro de pension introuvable.",
+                  style: TextStyle(
+                    color: Colors.red.shade600,
+                    fontSize: 13,
+                    height: 1.3,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+          
+          // Divider
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            height: 1,
+            color: Colors.red.withOpacity(0.2),
+          ),
+          
+          // Information section
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Solutions :",
+                  style: TextStyle(
+                    color: Colors.red.shade700,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildSuggestionItem(
+                  Icons.edit_outlined,
+                  "Vérifiez le numéro saisi",
+                  Colors.red.shade600,
+                ),
+                _buildSuggestionItem(
+                  Icons.business_outlined,
+                  "Changez d'agence si nécessaire",
+                  Colors.red.shade600,
+                ),
+              ],
+            ),
+          ),
+          
+          // Action buttons
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            child: Column(
+              children: [
+                // Primary action button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _resetForm,
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Réessayer'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryColor,
+                      foregroundColor: AppColors.whiteColor,
+                      elevation: 2,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      textStyle: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Secondary action button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Go back to agency selection
+                    },
+                    icon: const Icon(Icons.business, size: 18),
+                    label: const Text('Changer agence'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primaryColor,
+                      side: const BorderSide(color: AppColors.primaryColor, width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      textStyle: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuggestionItem(IconData icon, String text, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: color.withOpacity(0.7)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: color.withOpacity(0.7)),
+          const SizedBox(width: 8),
+          Text(
+            "$label:",
+            style: TextStyle(
+              color: color.withOpacity(0.8),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -353,6 +691,48 @@ class _DecujusVerificationScreenState extends State<DecujusVerificationScreen>
   }
 
   Widget _buildVerificationCard() {
+    // If verification result shows "not found", return only the not found card
+    // This card has its own reset logic, so it's a terminal state for this view.
+    if (_verificationResult != null && _verificationResult!['exists'] == false) {
+      return _buildNotFoundCard();
+    }
+
+    // If a declaration was just successfully submitted, show a success message.
+    if (_declarationSuccessMessage != null) {
+        return Card(
+            elevation: 8,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                        const Icon(Icons.check_circle, color: Colors.green, size: 50),
+                        const SizedBox(height: 16),
+                        const Text('Succès', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.subTitleColor)),
+                        const SizedBox(height: 8),
+                        Text(
+                            _declarationSuccessMessage!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 14, color: AppColors.grayColor),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                            onPressed: _resetForm,
+                            icon: const Icon(Icons.add),
+                            label: const Text('Effectuer une autre déclaration'),
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryColor,
+                                foregroundColor: AppColors.whiteColor,
+                            ),
+                        )
+                    ],
+                ),
+            ),
+        );
+    }
+    
+    // Otherwise show the normal verification card content
     return Card(
       elevation: 8,
       shape: RoundedRectangleBorder(
@@ -360,256 +740,117 @@ class _DecujusVerificationScreenState extends State<DecujusVerificationScreen>
       ),
       child: Padding(
         padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Vérification par numéro de pension",
-              style: TextStyle(
-                color: AppColors.subTitleColor,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Saisissez le numéro de pension du défunt",
-              style: TextStyle(
-                color: AppColors.grayColor,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 24),
+        child: Form( // The form should wrap the content
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Only show title if we haven't verified yet
+              if (_verificationResult == null) ...[
+                const Text(
+                  "Vérification par numéro de pension",
+                  style: TextStyle(
+                    color: AppColors.subTitleColor,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Saisissez le numéro de pension du défunt",
+                  style: TextStyle(
+                    color: AppColors.grayColor,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
             
-            // Error Display
-            if (_errorMessage != null)
-              Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.errorColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.error_outline, color: AppColors.errorColor, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(
-                          color: AppColors.errorColor,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            // Verification Result Display
-            if (_verificationResult != null)
-              Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _verificationResult!['exists'] == true
-                      ? Colors.green.withOpacity(0.1)
-                      : Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _verificationResult!['exists'] == true
-                        ? Colors.green
-                        : Colors.orange,
-                    width: 1,
+              // Error Display
+              if (_errorMessage != null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.errorColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          _verificationResult!['exists'] == true
-                              ? Icons.check_circle
-                              : Icons.info,
-                          color: _verificationResult!['exists'] == true
-                              ? Colors.green
-                              : Colors.orange,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _verificationResult!['exists'] == true
-                                ? "Decujus trouvé ✓"
-                                : "Decujus non trouvé",
-                            style: TextStyle(
-                              color: _verificationResult!['exists'] == true
-                                  ? Colors.green
-                                  : Colors.orange,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _verificationResult!['message'] ?? '',
-                      style: TextStyle(
-                        color: _verificationResult!['exists'] == true
-                            ? Colors.green.shade700
-                            : Colors.orange.shade700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    if (_verificationResult!['exists'] == true && _verificationResult!['data'] != null)
-                      ...[
-                        const SizedBox(height: 12),
-                        const Divider(),
-                        const SizedBox(height: 8),
-                        if (_verifiedDecujus != null) ...[
-                           Text(
-                            "Nom: ${_verifiedDecujus!.firstName} ${_verifiedDecujus!.lastName}".trim(),
-                            style: TextStyle(
-                              color: Colors.green.shade700,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 14, // Standardized font size
-                            ),
-                          ),
-                          if (_verifiedDecujus!.dateOfBirth.isNotEmpty)
-                            Text(
-                              "Date de naissance: ${_formatDate(_verifiedDecujus!.dateOfBirth)}", // Apply date formatting
-                              style: TextStyle(
-                                color: Colors.green.shade700,
-                                fontSize: 14, // Standardized font size
-                              ),
-                            ),
-                           Text(
-                            "Pension Active: ${_verifiedDecujus!.isPensionActive ? 'Oui' : 'Non'}", // Corrected string escaping
-                            style: TextStyle(
-                              color: _verifiedDecujus!.isPensionActive ? Colors.green.shade700 : Colors.orange.shade700,
-                              fontSize: 14, // Standardized font size
-                            ),
-                          ),
-                        ] else if (_verificationResult!['data']?['first_name'] != null || // Corrected string escaping
-                            _verificationResult!['data']?['last_name'] != null) // Corrected string escaping
-                          Text(
-                            "Nom: ${_verificationResult!['data']?['first_name'] ?? ''} ${_verificationResult!['data']?['last_name'] ?? ''}".trim(), // Corrected string escaping
-                            style: TextStyle(
-                              color: Colors.green.shade700,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 14,
-                            ),
-                          ),
-                        if (_verificationResult!['data']?['date_of_birth'] != null) // Corrected string escaping
-                          Text(
-                            "Date de naissance: ${_formatDate(_verificationResult!['data']?['date_of_birth'])}", // Corrected string escaping and Apply date formatting
-                            style: TextStyle(
-                              color: Colors.green.shade700,
-                              fontSize: 14, // Standardized font size
-                            ),
-                          ),
-                      ],
-                  ],
-                ),
-              ),
-
-            // Declaration Form Section
-            if (_showDeclarationForm && _verifiedDecujus != null)
-              _buildDeclarationForm(),
-
-            // Form for pension number input
-            if (!_showDeclarationForm || _verifiedDecujus == null)
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _pensionNumberController,
-                    decoration: InputDecoration(
-                      labelText: 'Numéro de pension',
-                      labelStyle: TextStyle(color: AppColors.grayColor.withOpacity(0.8)),
-                      prefixIcon: const Icon(Icons.assignment_ind, color: AppColors.primaryColor, size: 20),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: AppColors.borderColor, width: 1),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: AppColors.borderColor, width: 1),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AppColors.primaryColor, width: 1.5),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      hintText: 'Ex: QWER12345',
-                    ),
-                    textCapitalization: TextCapitalization.characters,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Veuillez entrer un numéro de pension';
-                      }
-                      if (value.trim().length < 5) {
-                        return 'Le numéro de pension doit contenir au moins 5 caractères';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
+                  child: Row(
                     children: [
-                      if (_verificationResult != null)
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: _resetForm,
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: AppColors.primaryColor, width: 1.5),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text(
-                              'Nouvelle vérification',
-                              style: TextStyle(
-                                color: AppColors.primaryColor,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (_verificationResult != null)
-                        const SizedBox(width: 12),
+                      const Icon(Icons.error_outline, color: AppColors.errorColor, size: 18),
+                      const SizedBox(width: 8),
                       Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _verifyDecujus,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryColor,
-                            foregroundColor: AppColors.whiteColor,
-                            elevation: 2,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            _verificationResult != null ? 'Vérifier à nouveau' : 'Vérifier',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            color: AppColors.errorColor,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
                           ),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-          ],
+                ),
+
+              // Show verification form only if no verification has been attempted yet
+              if (_verificationResult == null) ...[
+                TextFormField(
+                  controller: _pensionNumberController,
+                  keyboardType: TextInputType.text,
+                  textCapitalization: TextCapitalization.characters, // Suggest uppercase input
+                  decoration: InputDecoration(
+                    labelText: 'Numéro de Pension',
+                    hintText: 'Entrez le numéro de pension',
+                    prefixIcon: const Icon(Icons.credit_card),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  inputFormatters: [UpperCaseTextFormatter()], // Force uppercase
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Le numéro de pension est requis';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _verifyDecujus,
+                    icon: const Icon(Icons.search),
+                    label: const Text('Vérifier'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryColor,
+                      foregroundColor: AppColors.whiteColor,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text('Changer d\'agence'),
+                  ),
+                ),
+              ],
+
+              // Verification Result Display (only for found decujus)
+              if (_verificationResult != null && _verificationResult!['exists'] == true)
+                _buildVerificationResultCard(),
+
+              // Declaration Form Section
+              if (_showDeclarationForm && _verifiedDecujus != null)
+                _buildDeclarationForm(),
+            ],
+          ),
         ),
       ),
     );
@@ -736,6 +977,20 @@ class _DecujusVerificationScreenState extends State<DecujusVerificationScreen>
       onChanged: onChanged,
       validator: validator,
       autovalidateMode: AutovalidateMode.onUserInteraction,
+    );
+  }
+}
+
+// Add this formatter class at the end of the file
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return newValue.copyWith(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
     );
   }
 }

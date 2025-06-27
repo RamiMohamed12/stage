@@ -11,7 +11,7 @@ import declarationRoutes from './routes/declarationRoutes'; // Import declaratio
 import adminRoutes from './routes/adminRoutes'; // Import admin routes
 import notificationRoutes from './routes/notificationRoutes'; // Import notification routes
 import appointmentRoutes from './routes/appointmentRoutes'; // Import appointment routes
-import path from 'path'; // Import path module
+import path from 'path';
 
 dotenv.config();
 

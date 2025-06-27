@@ -197,7 +197,7 @@ export const handleUploadDeclarationDocument = async (req: Request, res: Respons
             return;
         }
 
-        const filePath = req.file.path; 
+        const relativePath = `/uploads/${req.file.filename}`;
         const originalFilename = req.file.originalname; // Good to have for record-keeping if your service uses it
 
         const ownerApplicantId = await documentService.getApplicantUserIdForDeclarationDocument(declarationDocumentId);
@@ -212,7 +212,7 @@ export const handleUploadDeclarationDocument = async (req: Request, res: Respons
             return;
         }
 
-        await documentService.updateDocumentOnUpload(declarationDocumentId, filePath, originalFilename);
+        await documentService.updateDocumentOnUpload(declarationDocumentId, relativePath, originalFilename);
 
         res.status(200).json({ message: 'Document uploaded successfully.' });
 

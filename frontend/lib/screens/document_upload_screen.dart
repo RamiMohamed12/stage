@@ -1,6 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:frontend/models/document.dart';
 import 'package:frontend/services/document_service.dart';
 import 'package:frontend/constants/colors.dart';
@@ -61,7 +66,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   Future<void> _pickFile(int declarationDocumentId) async {
     final document = _documents.firstWhere((d) => d.declarationDocumentId == declarationDocumentId);
 
-    // Allow picking a file only if the document is not yet approved.
+    // Allow picking a file only if not approved
     if (document.status == DocumentStatus.approved) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ce document a déjà été approuvé et ne peut pas être modifié.')),
@@ -70,6 +75,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     }
 
     try {
+      // Use regular file picker instead of camera scanner to avoid crashes
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'svg', 'heic'],
