@@ -112,7 +112,7 @@ class _CreateDeclarationScreenState extends State<CreateDeclarationScreen> {
               onPrimary: AppColors.whiteColor, // header text color
               onSurface: AppColors.textColor, // body text color
             ),
-            dialogTheme: const DialogTheme(
+            dialogTheme: const DialogThemeData(
               backgroundColor: AppColors.bgLightColor, // Use DialogThemeData.backgroundColor
             ),
           ),

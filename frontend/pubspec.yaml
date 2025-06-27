@@ -105,15 +105,15 @@ flutter:
 # Native splash screen configuration
 flutter_native_splash:
   color: "#ffffff"
-  image: assets/logos/e_retraite.png
+  image: assets/logos/cnr_logo.png
   android: true
   ios: true
   fullscreen: true
-  android_gravity: center
-  ios_content_mode: center
+  android_gravity: fill
+  ios_content_mode: scaleAspectFit
   android_12:
-    image: assets/logos/e_retraite.png
+    image: assets/logos/cnr_logo.png
     color: "#ffffff"
     icon_background_color: "#ffffff"
-  branding: assets/logos/e_retraite.png
+  branding: assets/logos/cnr_logo.png
   branding_mode: bottom

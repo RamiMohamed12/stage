@@ -102,7 +102,7 @@ class MyApp extends StatelessWidget {
           bodyMedium: TextStyle(color: AppColors.textColor, fontSize: 14.0),
           labelLarge: TextStyle(color: AppColors.whiteColor, fontWeight: FontWeight.bold, fontSize: 16.0), // For button text
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12.0),

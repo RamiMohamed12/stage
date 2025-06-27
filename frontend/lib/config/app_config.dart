@@ -1,6 +1,6 @@
 class AppConfig {
   // API Configuration
-  static const String baseUrl = 'http://192.168.108.17:3000/api';
+  static const String baseUrl = 'http://192.168.108.234:3000/api';
   
   // App Configuration
   static const String appName = 'Declaration App';
