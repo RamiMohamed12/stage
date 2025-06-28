@@ -603,48 +603,44 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
     );
   }
 
+  // MODIFIED WIDGET
   Widget _buildActionButtons() {
-    final hasRejected = _documents.any((doc) => doc.status == DocumentStatus.rejected);
-    final allApproved = _documents.every((doc) => doc.status == DocumentStatus.approved);
-    
-    return Column(
-      children: [
-        if (hasRejected) ...[
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pushReplacementNamed(
-                  context,
-                  '/documentUpload',
-                  arguments: {
-                    'declarationId': widget.declarationId,
-                    'declarantName': widget.applicantName,
-                  },
-                );
-              },
-              icon: const Icon(Icons.edit_document, color: AppColors.whiteColor),
-              label: const Text(
-                'Corriger les Documents',
-                style: TextStyle(
-                  color: AppColors.whiteColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+    // This condition is true if there's at least one document that is not approved.
+    final bool hasUnapproved = _documents.any((doc) => doc.status != DocumentStatus.approved);
+
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        children: [
+          // If there are unapproved documents (pending, rejected, etc.), show the "Modify" button.
+          if (hasUnapproved)
+            ElevatedButton.icon(
+              icon: const Icon(Icons.edit_document),
+              label: const Text('Modifier les documents'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                padding: const EdgeInsets.symmetric(vertical: 15),
+                backgroundColor: AppColors.primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8.0),
                 ),
               ),
-            ),
-          ),
-        ] else if (allApproved) ...[
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
+              onPressed: () {
+                // Navigate to the document upload screen to allow modifications.
+                // Use the route name from main.dart
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/documents-upload', 
+                  arguments: {
+                    'declarationId': widget.declarationId,
+                    'declarantName': widget.applicantName ?? '',
+                  },
+                );
+              },
+            )
+          // Otherwise (if all documents are approved), show the "New Declaration" button.
+          else
+            ElevatedButton.icon(
               onPressed: () {
                 Navigator.pushNamedAndRemoveUntil(
                   context,
@@ -669,37 +665,11 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
                 ),
               ),
             ),
-          ),
-        ] else ...[
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.withOpacity(0.3)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline, color: Colors.blue, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Vos documents sont en cours de révision. Vous serez notifié du résultat.',
-                    style: TextStyle(
-                      color: Colors.blue.shade700,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
-      ],
+      ),
     );
   }
+
 
   Color _getStatusColor(DocumentStatus status) {
     switch (status) {

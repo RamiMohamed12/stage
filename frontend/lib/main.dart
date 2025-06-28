@@ -125,17 +125,14 @@ class MyApp extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
         ),
       ),
-      // You can keep '/login' as the initial route, or change it to '/'
-      // since '/' will now also point to LoginScreen.
-      // For clarity, if LoginScreen is your absolute first screen, '/' is conventional.
       initialRoute: '/', 
       routes: {
-        '/': (context) => const LoginScreen(), // Add this line to define the root route
+        '/': (context) => const LoginScreen(),
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignupScreen(),
         '/agencySelection': (context) => const AgencySelectionScreen(),
-        '/create-declaration': (context) => const CreateDeclarationScreen(), // Add this route
-        '/notifications': (context) => const NotificationScreen(), // Add notification route
+        '/create-declaration': (context) => const CreateDeclarationScreen(),
+        '/notifications': (context) => const NotificationScreen(),
         '/verificationResult': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>; 
           return VerificationResultScreen(routeArgs: args);
@@ -164,15 +161,12 @@ class MyApp extends StatelessWidget {
             );
           }
           
-          // Handle both parameter formats for backward compatibility
           if (args.containsKey('declarantName')) {
-            // New format: declarationId + declarantName
             return DocumentUploadScreen(
               declarationId: args['declarationId'],
               declarantName: args['declarantName'],
             );
           } else {
-            // Fallback - minimal parameters
             return DocumentUploadScreen(
               declarationId: args['declarationId'],
               declarantName: 'Déclarant',
@@ -216,7 +210,6 @@ class MyApp extends StatelessWidget {
               ),
             );
           }
-          // Since we removed AppointmentRejectScreen, redirect to the generic rejection screen
           return RejectionScreen(
             declarationId: args['declarationId'],
             applicantName: args['applicantName'] ?? 'Utilisateur',

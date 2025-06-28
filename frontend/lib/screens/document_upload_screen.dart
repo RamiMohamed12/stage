@@ -10,7 +10,6 @@ import 'package:frontend/models/document.dart';
 import 'package:frontend/services/document_service.dart';
 import 'package:frontend/constants/colors.dart';
 import 'package:frontend/widgets/loading_indicator.dart';
-import 'package:frontend/screens/formulaire_download_screen.dart';
 
 class DocumentUploadScreen extends StatefulWidget {
   final int declarationId;
@@ -242,15 +241,15 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
           children: [
             IconButton(
               icon: const Icon(Icons.arrow_back, color: AppColors.whiteColor, size: 28),
+              // MODIFIED: This now navigates back to the review screen for a better UX
               onPressed: () {
-                Navigator.pushReplacement(
+                Navigator.pushReplacementNamed(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => FormulaireDownloadScreen(
-                      declarationId: widget.declarationId,
-                      declarantName: widget.declarantName,
-                    ),
-                  ),
+                  '/documents-review',
+                  arguments: {
+                    'declarationId': widget.declarationId,
+                    'applicantName': widget.declarantName,
+                  },
                 );
               },
             ),
