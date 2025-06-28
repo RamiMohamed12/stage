@@ -612,31 +612,38 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
       width: double.infinity,
       child: Column(
         children: [
-          // If there are unapproved documents (pending, rejected, etc.), show the "Modify" button.
+          // If there are unapproved documents, show the "Modify" button.
           if (hasUnapproved)
             ElevatedButton.icon(
-              icon: const Icon(Icons.edit_document),
+              icon: const Icon(Icons.edit_document, size: 22.0),
               label: const Text('Modifier les documents'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-              ),
               onPressed: () {
-                // Navigate to the document upload screen to allow modifications.
-                // Use the route name from main.dart
                 Navigator.pushReplacementNamed(
                   context,
-                  '/documents-upload', 
+                  '/documents-upload',
                   arguments: {
                     'declarationId': widget.declarationId,
                     'declarantName': widget.applicantName ?? '',
                   },
                 );
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 16.0,
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
+                alignment: Alignment.center,
+                elevation: 4.0,
+              ),
             )
           // Otherwise (if all documents are approved), show the "New Declaration" button.
           else
@@ -661,7 +668,7 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
                 backgroundColor: AppColors.primaryColor,
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
+                  borderRadius: BorderRadius.circular(12.0),
                 ),
               ),
             ),
