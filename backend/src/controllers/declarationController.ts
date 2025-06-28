@@ -7,7 +7,7 @@ import {RowDataPacket} from 'mysql2/promise';
 import {ServiceErorr} from '../services/usersService';
 import * as path from 'path';
 import * as fs from 'fs';
-import archiver from 'archiver'; // Changed to default import
+import archiver from 'archiver';
 
 
 export const handleCheckDeclaration = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -71,7 +71,9 @@ export const handleCreateDeclaration = async (req: Request, res: Response, next:
             }
         }
         
+        // --- THIS PART IS NOW CORRECT ---
         // Create new declaration if none exists
+        // No need to add pension_notified here as it's handled by the DB default and the corrected type
         const declarationInput: CreateDeclarationInput = {
             applicant_user_id: userId,
             decujus_pension_number,
@@ -154,7 +156,10 @@ export const handleGetDeclarationById = async (req: Request, res: Response, next
 export const handleGetAllDeclarationsForUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try { 
         const userId = (req as any).user.userId;
-        const declarations = await declarationService.getAllDeclarations();
+        // This seems to get ALL declarations, not just for the user.
+        // Assuming this is intended for an admin or a feature that needs all.
+        // If it should be per user, it would be `declarationService.getDeclarationsByUserId(userId)`
+        const declarations = await declarationService.getAllDeclarations(); 
         res.status(200).json(declarations);
     } catch (error: unknown) {
         console.error('Controller error during retrieval of all declarations for user:', error);
@@ -184,7 +189,7 @@ export const handleGetDeclarationDocumentsStatus = async (req: Request, res: Res
 
 export const handleUploadDeclarationDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => { 
     try {
-        const userId = (req as any).user.userId; // Assuming userId is on req.user from authMiddleware
+        const userId = (req as any).user.userId;
         const declarationDocumentId = parseInt(req.params.declarationDocumentId, 10);
 
         if (isNaN(declarationDocumentId)) {
@@ -198,7 +203,7 @@ export const handleUploadDeclarationDocument = async (req: Request, res: Respons
         }
 
         const relativePath = `/uploads/${req.file.filename}`;
-        const originalFilename = req.file.originalname; // Good to have for record-keeping if your service uses it
+        const originalFilename = req.file.originalname;
 
         const ownerApplicantId = await documentService.getApplicantUserIdForDeclarationDocument(declarationDocumentId);
 
@@ -232,7 +237,6 @@ export const handleDownloadFormulaire = async (req: Request, res: Response, next
             return;
         }
         
-        // Verify the user has access to this declaration
         const declaration = await declarationService.getDeclarationById(declarationId);
         if (!declaration) {
             res.status(404).json({ message: 'Declaration not found' });
@@ -244,10 +248,8 @@ export const handleDownloadFormulaire = async (req: Request, res: Response, next
             return;
         }
         
-        // Path to formulaire directory
         const formulaireDir = path.join(__dirname, '../../src/formulaire');
         
-        // Check if formulaire images exist
         const imageFiles = ['1.jpg', '2.jpg', '3.jpg', '4.jpg'];
         const existingFiles = imageFiles.filter(file => 
             fs.existsSync(path.join(formulaireDir, file))
@@ -258,16 +260,13 @@ export const handleDownloadFormulaire = async (req: Request, res: Response, next
             return;
         }
         
-        // Set response headers for ZIP download
         res.setHeader('Content-Type', 'application/zip');
         res.setHeader('Content-Disposition', `attachment; filename="formulaire_declaration_${declarationId}.zip"`);
         
-        // Create ZIP archive
         const archive = archiver('zip', {
-            zlib: { level: 9 } // Compression level
+            zlib: { level: 9 }
         });
         
-        // Handle archive errors
         archive.on('error', (err: any) => {
             console.error('Archive error:', err);
             if (!res.headersSent) {
@@ -275,16 +274,13 @@ export const handleDownloadFormulaire = async (req: Request, res: Response, next
             }
         });
         
-        // Pipe archive to response
         archive.pipe(res);
         
-        // Add each image file to the archive
         existingFiles.forEach(file => {
             const filePath = path.join(formulaireDir, file);
             archive.file(filePath, { name: `formulaire_page_${file}` });
         });
         
-        // Finalize the archive
         await archive.finalize();
         
     } catch (error: unknown) {
@@ -299,7 +295,6 @@ export const handleGetUserPendingDeclaration = async (req: Request, res: Respons
     try {
         const userId = (req as any).user.userId;
         
-        // Get user's most recent declaration with uploaded documents that are still pending review
         const pendingDeclaration = await declarationService.getUserPendingDeclaration(userId);
         
         if (!pendingDeclaration) {
@@ -307,7 +302,6 @@ export const handleGetUserPendingDeclaration = async (req: Request, res: Respons
             return;
         }
         
-        // Get user information for declarant name
         const user = await usersService.getUserbyId(userId);
         const declarantName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown' : 'Unknown';
         

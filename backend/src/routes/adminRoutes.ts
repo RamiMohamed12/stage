@@ -5,9 +5,10 @@ import { Role } from '../models/Users'; // Import the Role enum
 
 const router = express.Router();
 
+// This middleware applies to all routes defined in this file
 router.use(authenticateToken);
 
-// New routes for admin dashboard
+// --- Routes for Admin Dashboard and Declaration Management ---
 router.get(
     '/declarations',
     checkRole([Role.ADMIN]),
@@ -20,14 +21,13 @@ router.get(
     adminController.getDeclarationDetails
 );
 
-// New route for bulk approval
+// --- Routes for Bulk/Advanced Approval Actions ---
 router.post(
     '/declarations/approve-all',
     checkRole([Role.ADMIN]),
     adminController.handleApproveAllDeclarations
 );
 
-// New routes for appointment-based approvals
 router.post(
     '/declarations/:declarationId/approve-with-appointment',
     checkRole([Role.ADMIN]),
@@ -40,7 +40,20 @@ router.post(
     adminController.handleApproveAllDeclarationsWithAppointments
 );
 
-// Existing routes
+
+router.get(
+    '/pension-groups',
+    checkRole([Role.ADMIN]),
+    adminController.getApprovedDeclarationGroups
+);
+
+router.post(
+    '/pension-groups/calculate',
+    checkRole([Role.ADMIN]),
+    adminController.handlePensionCalculation
+);
+
+
 router.patch(
     '/documents/:declarationDocumentId/review',
     checkRole([Role.ADMIN]), 

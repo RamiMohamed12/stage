@@ -654,6 +654,15 @@
             </select>
             <button class="refresh-btn" onclick="loadDeclarations()">🔄 Actualiser</button>
             <button class="approve-all-btn" onclick="approveAllDeclarations()">✅ Tout Approuver</button>
+            <!-- ======================================================= -->
+            <!-- START: Correctly Placed "Calculer les Pensions" Button -->
+            <!-- ======================================================= -->
+            <a href="pensionCalculation.html" class="action-btn" style="background-color: var(--violet-color); color: var(--white-color); text-decoration: none; display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 500;">
+                🧮 Calculer les Pensions
+            </a>
+            <!-- ======================================================= -->
+            <!-- END: Correctly Placed "Calculer les Pensions" Button   -->
+            <!-- ======================================================= -->
         </div>
 
         <!-- Stats -->
@@ -695,7 +704,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">Détails de la Déclaration</h2>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
+                <button class="close-btn" onclick="closeModal()">×</button>
             </div>
             <div id="modalContent">
                 <!-- Le contenu dynamique sera chargé ici -->
@@ -708,7 +717,7 @@
         <div class="appointment-modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">Planifier un Rendez-vous</h2>
-                <button class="close-btn" onclick="closeAppointmentModal()">&times;</button>
+                <button class="close-btn" onclick="closeAppointmentModal()">×</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -813,7 +822,7 @@
                 if (data.success) {
                     declarations = data.data;
                     displayDeclarations(declarations);
-                    updateStats(declarations);
+                    updateStats(data.pagination.total); // Pass total from pagination to get accurate overall stats
                     updatePagination(data.pagination);
                 } else {
                     throw new Error('Failed to load declarations');
@@ -824,6 +833,22 @@
                 displayError('Failed to load declarations. Please try again.');
             }
         }
+        
+        // Update statistics
+        function updateStats(totalDeclarations) {
+            // Update total count from the server response for accuracy
+            document.getElementById('totalDeclarations').textContent = totalDeclarations;
+            
+            // The counts below will reflect the currently filtered view, which can be useful.
+            const submitted = declarations.filter(d => d.status === 'submitted').length;
+            const approved = declarations.filter(d => d.status === 'approved').length;
+            const rejected = declarations.filter(d => d.status === 'rejected').length;
+
+            document.getElementById('pendingDeclarations').textContent = submitted;
+            document.getElementById('approvedDeclarations').textContent = approved;
+            document.getElementById('rejectedDeclarations').textContent = rejected;
+        }
+
 
         // Display declarations
         function displayDeclarations(declarations) {
@@ -915,19 +940,6 @@
                 'rejected': 'Rejetée'
             };
             return statusLabels[status] || status;
-        }
-
-        // Update statistics
-        function updateStats(declarations) {
-            const total = declarations.length;
-            const submitted = declarations.filter(d => d.status === 'submitted').length;
-            const approved = declarations.filter(d => d.status === 'approved').length;
-            const rejected = declarations.filter(d => d.status === 'rejected').length;
-
-            document.getElementById('totalDeclarations').textContent = total;
-            document.getElementById('pendingDeclarations').textContent = submitted;
-            document.getElementById('approvedDeclarations').textContent = approved;
-            document.getElementById('rejectedDeclarations').textContent = rejected;
         }
 
         // Update pagination
@@ -1123,62 +1135,12 @@
             }
         }
 
-        // Reject appointment
-        async function rejectAppointment(declarationId) {
-            const rejectionReason = prompt('Veuillez fournir une raison pour le rejet du rendez-vous:');
-            if (!rejectionReason) return;
-
-            const token = localStorage.getItem('adminToken');
-            
-            try {
-                // First, get the appointment ID for this declaration
-                const appointmentResponse = await fetch(`${API_BASE_URL}/api/appointments/declaration/${declarationId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (!appointmentResponse.ok) {
-                    throw new Error('Aucun rendez-vous trouvé pour cette déclaration');
-                }
-
-                const appointmentData = await appointmentResponse.json();
-                const appointmentId = appointmentData.appointment_id;
-
-                // Now reject the appointment
-                const response = await fetch(`${API_BASE_URL}/api/appointments/${appointmentId}/reject`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        rejection_reason: rejectionReason
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Échec du rejet du rendez-vous');
-                }
-
-                alert('Rendez-vous rejeté avec succès! Une notification a été envoyée à l\'utilisateur.');
-                closeModal();
-                loadDeclarations(currentPage);
-
-            } catch (error) {
-                console.error('Erreur lors du rejet du rendez-vous:', error);
-                alert('Échec du rejet du rendez-vous: ' + error.message);
-            }
-        }
-
         // Approve all declarations
         async function approveAllDeclarations() {
             if (!confirm('Êtes-vous sûr de vouloir approuver TOUTES les déclarations en attente qui sont prêtes pour approbation? Cela enverra des notifications à tous les utilisateurs concernés.')) return;
 
             const token = localStorage.getItem('adminToken');
             
-            // Show loading state
             const approveAllBtn = document.querySelector('.approve-all-btn');
             const originalText = approveAllBtn.textContent;
             approveAllBtn.textContent = '⏳ Traitement...';
@@ -1194,12 +1156,12 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Échec de l\'approbation des déclarations');
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Échec de l\'approbation des déclarations');
                 }
 
                 const result = await response.json();
                 
-                // Show detailed results
                 let message = result.message;
                 if (result.errors && result.errors.length > 0) {
                     message += '\n\nErreurs rencontrées:\n' + result.errors.join('\n');
@@ -1212,7 +1174,6 @@
                 console.error('Erreur lors de l\'approbation de toutes les déclarations:', error);
                 alert('Échec de l\'approbation des déclarations: ' + error.message);
             } finally {
-                // Reset button state
                 approveAllBtn.textContent = originalText;
                 approveAllBtn.disabled = false;
             }
@@ -1254,11 +1215,13 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Échec de l\'approbation de la déclaration avec rendez-vous');
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Échec de l\'approbation de la déclaration avec rendez-vous');
                 }
 
                 const result = await response.json();
                 alert('Déclaration approuvée et rendez-vous planifié avec succès!');
+                closeModal();
                 closeAppointmentModal();
                 loadDeclarations(currentPage);
 
@@ -1282,6 +1245,10 @@
             const modal = document.getElementById('declarationModal');
             if (event.target === modal) {
                 closeModal();
+            }
+            const appointmentModal = document.getElementById('appointmentModal');
+             if (event.target === appointmentModal) {
+                closeAppointmentModal();
             }
         });
 

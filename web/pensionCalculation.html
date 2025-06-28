@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calcul des Pensions - Admin</title>
+    <!-- Reusing the same styles as the main dashboard for consistency -->
+    <style>
+        :root {
+            --primary-color: #0C72BA;
+            --secondary-color: #C5DEF2;
+            --black-color: rgba(0, 0, 0, 0.54);
+            --error-color: #FF4757;
+            --success-color: #54AD8F;
+            --warning-color: #EEBB7A;
+            --subtitle-color: #3F3D56;
+            --violet-color: #6C5CE7;
+            --bg-light-color: #F7F9FD;
+            --bg-dark-blue-color: #0A5996;
+            --light-primary-color: #3D99DD;
+            --white-color: #FFFFFF;
+            --divider-color: #EAEDF2;
+            --gray-color: #959595;
+            --text-color: rgba(0, 0, 0, 0.87);
+            --border-color: #808080;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-light-color); color: var(--text-color); line-height: 1.6; }
+        .header { background: linear-gradient(135deg, var(--primary-color), var(--bg-dark-blue-color)); color: var(--white-color); padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(12, 114, 186, 0.3); position: sticky; top: 0; z-index: 100; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; max-width: 1400px; margin: 0 auto; }
+        .header-title { display: flex; align-items: center; gap: 0.5rem; }
+        .header-actions { display: flex; align-items: center; gap: 1rem; }
+        .logout-btn { background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); color: var(--white-color); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; transition: all 0.3s ease; }
+        .logout-btn:hover { background: rgba(255, 255, 255, 0.3); }
+        .main-content { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--primary-color); text-decoration: none; font-weight: 500; margin-bottom: 1.5rem; }
+        .pension-groups-container { background: var(--white-color); border-radius: 12px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); overflow: hidden; }
+        .pension-groups-header { background: linear-gradient(135deg, var(--violet-color), #8A7EFF); color: var(--white-color); padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+        .group-card { border: 1px solid var(--divider-color); border-radius: 8px; margin: 1.5rem; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .group-header { background: var(--bg-light-color); padding: 1rem 1.5rem; font-weight: 600; color: var(--subtitle-color); border-bottom: 1px solid var(--divider-color); }
+        .beneficiary-list { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+        .beneficiary-item { display: grid; grid-template-columns: 2fr 1.5fr 2fr 1fr; gap: 1rem; align-items: center; font-size: 0.9rem; }
+        .group-actions { padding: 1.5rem; border-top: 1px solid var(--divider-color); text-align: right; background-color: #fdfdfd; }
+        .action-btn { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: all 0.3s ease; }
+        .btn-calculate { background: var(--success-color); color: var(--white-color); }
+        .btn-recalculate { background: var(--warning-color); color: var(--white-color); }
+        .action-btn:hover:not(:disabled) { transform: translateY(-1px); }
+        .action-btn:disabled { background: var(--gray-color); cursor: not-allowed; opacity: 0.7; }
+        .loading { text-align: center; padding: 3rem; color: var(--gray-color); }
+        .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--divider-color); border-top: 3px solid var(--violet-color); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .empty-state { text-align: center; padding: 3rem; color: var(--gray-color); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="header-title">
+                <h1>Calcul des Pensions de Réversion</h1>
+            </div>
+            <div class="header-actions">
+                <span id="adminName">Chargement...</span>
+                <button class="logout-btn" onclick="logout()">Déconnexion</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <a href="adminDashboard.html" class="back-link">← Retour au Tableau de Bord</a>
+
+        <div class="pension-groups-container">
+            <div class="pension-groups-header">
+                <h2>Groupes de Bénéficiaires par Pensionné</h2>
+                <button class="action-btn" onclick="loadPensionGroups()" style="background-color: rgba(255,255,255,0.2);">🔄 Actualiser</button>
+            </div>
+            <div id="pensionGroupsContent">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Chargement des groupes de pension...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const API_BASE_URL = 'http://localhost:3000';
+
+    function checkAuth() {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            window.location.href = 'login.html';
+            return false;
+        }
+        try {
+            const user = JSON.parse(localStorage.getItem('adminUser'));
+            document.getElementById('adminName').textContent = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
+        } catch (e) {
+            logout(); // Clear corrupted data
+            return false;
+        }
+        return true;
+    }
+
+    function logout() {
+        localStorage.clear();
+        window.location.href = 'login.html';
+    }
+
+    async function loadPensionGroups() {
+        const token = localStorage.getItem('adminToken');
+        const contentDiv = document.getElementById('pensionGroupsContent');
+        contentDiv.innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Chargement...</p></div>`;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/admin/pension-groups`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            }
+
+            const groups = await response.json();
+
+            if (Object.keys(groups).length === 0) {
+                contentDiv.innerHTML = `<div class="empty-state"><h3>Aucun groupe de bénéficiaires approuvé trouvé.</h3><p>Les déclarations doivent d'abord être approuvées par un administrateur.</p></div>`;
+                return;
+            }
+
+            let html = '';
+            for (const pensionNumber in groups) {
+                const beneficiaries = groups[pensionNumber];
+                
+                // CHANGE: Determine if ANY beneficiary has been notified to decide the button's text.
+                const hasBeenNotifiedBefore = beneficiaries.some(b => b.pension_notified);
+                const buttonText = hasBeenNotifiedBefore ? 'Recalculer & Notifier' : 'Calculer & Notifier';
+                const buttonClass = hasBeenNotifiedBefore ? 'btn-recalculate' : 'btn-calculate';
+
+                html += `
+                    <div class="group-card">
+                        <div class="group-header">
+                            Pensionné N°: <strong>${pensionNumber}</strong> <span style="font-weight: normal;">(${beneficiaries.length} bénéficiaire(s))</span>
+                        </div>
+                        <div class="beneficiary-list">
+                `;
+                beneficiaries.forEach(b => {
+                    html += `
+                        <div class="beneficiary-item">
+                            <span><strong>Déclarant:</strong> ${b.declarant_name}</span>
+                            <span><strong>Lien:</strong> ${b.relationship_name}</span>
+                            <span><strong>Email:</strong> ${b.declarant_email}</span>
+                            <span style="font-weight: bold; color: ${b.pension_notified ? 'var(--success-color)' : 'var(--gray-color)'};">
+                                ${b.pension_notified ? '✅ A été notifié' : ' L\'attente de calcul'}
+                            </span>
+                        </div>
+                    `;
+                });
+                html += `
+                        </div>
+                        <div class="group-actions">
+                            <!-- CHANGE: The button is now always enabled, and its text changes. -->
+                            <button 
+                                class="action-btn ${buttonClass}" 
+                                onclick="calculateAndNotify('${pensionNumber}', event)">
+                                ${buttonText}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+            contentDiv.innerHTML = html;
+
+        } catch (error) {
+            console.error('Error loading pension groups:', error);
+            contentDiv.innerHTML = `<div class="empty-state"><h3>Erreur de chargement des données.</h3><p>${error.message}</p></div>`;
+        }
+    }
+
+    async function calculateAndNotify(pensionNumber, event) {
+        // CHANGE: Updated confirmation message for clarity.
+        const confirmMessage = "Cette action va (re)calculer les parts pour tous les bénéficiaires de ce groupe et leur envoyer une notification (initiale ou de mise à jour).\n\nÊtes-vous sûr de vouloir continuer ?";
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        const token = localStorage.getItem('adminToken');
+        const button = event.target;
+        button.disabled = true;
+        button.textContent = 'Traitement...';
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/admin/pension-groups/calculate`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ decujusPensionNumber: pensionNumber })
+            });
+            
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.message || 'Une erreur est survenue lors du traitement.');
+            }
+
+            alert(`Succès ! ${result.message}`);
+            loadPensionGroups(); // Reload to reflect changes
+
+        } catch (error) {
+            console.error('Error during calculation and notification:', error);
+            alert(`Erreur: ${error.message}`);
+            // Re-enable button on failure. No need to change text back, as a reload is better.
+            button.disabled = false;
+            button.textContent = 'Réessayer';
+        }
+    }
+
+    window.addEventListener('load', () => {
+        if (checkAuth()) {
+            loadPensionGroups();
+        }
+    });
+</script>
+</body>
+</html>

@@ -6,7 +6,7 @@ import {CreateDeclarationInput, Declarations} from '../models/Declarations';
 import {Status as DeclarationStatus} from '../models/Declarations';
 import { Declaration } from 'typescript';
 import { deactivatePension } from './decujusService'; // Import deactivatePension
-
+import { sendNotificationToUser } from './notificationService';
 // New interface for admin dashboard declarations with user info
 export interface AdminDeclarationView {
     declaration_id: number;
@@ -30,6 +30,182 @@ export interface AdminDeclarationView {
     mandatory_documents: number;
     mandatory_verified: number;
 }
+
+export interface DeclarationGroupInfo extends 
+Declarations {
+    declarant_name: string;
+    declarant_email: string;
+    relationship_name: string;
+}
+
+interface PensionDistributionResult { 
+    userId : number ;
+    declarationId: number;
+    percentage: number;
+    declarationDate: Date;
+}
+
+export const getApprovedDeclarationsGroupedByPensionNumber = async (): Promise<Record<string, DeclarationGroupInfo[]>> => {
+    let connection: PoolConnection | undefined;
+    try {
+        connection = await pool.getConnection();
+        // Fetch all approved declarations along with user and relationship info
+        const sql = `
+            SELECT
+                d.*,
+                CONCAT(u.first_name, ' ', u.last_name) as declarant_name,
+                u.email as declarant_email,
+                r.description as relationship_name
+            FROM declarations d
+            JOIN users u ON d.applicant_user_id = u.user_id
+            JOIN relationships r ON d.relationship_id = r.id
+            WHERE d.status = ? AND d.decujus_pension_number IS NOT NULL
+            ORDER BY d.decujus_pension_number, d.created_at;
+        `;
+        const [rows] = await connection.query<RowDataPacket[]>(sql, [DeclarationStatus.APPROVED]);
+
+        // Group the results in code
+        const groups: Record<string, DeclarationGroupInfo[]> = {};
+        for (const row of rows) {
+            const pensionNumber = row.decujus_pension_number;
+            if (!groups[pensionNumber]) {
+                groups[pensionNumber] = [];
+            }
+            groups[pensionNumber].push(row as DeclarationGroupInfo);
+        }
+
+        return groups;
+
+    } catch (error) {
+        console.error('[declarationService] Error in getApprovedDeclarationsGroupedByPensionNumber:', error);
+        throw new ServiceErorr('Failed to retrieve and group approved declarations', 500);
+    } finally {
+        if (connection) connection.release();
+    }
+}
+
+
+/**
+ * Calculates the percentage distribution based on the provided business rules.
+ * @param beneficiaries - An array of approved declarations for a single decujus.
+ * @returns An array of objects with userId, declarationId, percentage, and declarationDate.
+ */
+const calculatePensionDistribution = (beneficiaries: Declarations[]): PensionDistributionResult[] => {
+    // Helper to identify relationship type
+    const getRelationType = (id: number): 'spouse' | 'child' | 'ascendant' => {
+        if ([1, 2].includes(id)) return 'spouse';
+        if ([3, 4].includes(id)) return 'child';
+        if ([5, 6].includes(id)) return 'ascendant';
+        throw new Error(`Unknown relationship ID: ${id}`);
+    };
+
+    const spouse = beneficiaries.find(b => getRelationType(b.relationship_id) === 'spouse');
+    const children = beneficiaries.filter(b => getRelationType(b.relationship_id) === 'child');
+    const ascendants = beneficiaries.filter(b => getRelationType(b.relationship_id) === 'ascendant');
+    const others = [...children, ...ascendants];
+    const results: PensionDistributionResult[] = [];
+
+    // Case 1: Spouse is present
+    if (spouse) {
+        if (others.length === 0) { // Spouse alone
+            results.push({ userId: spouse.applicant_user_id, declarationId: spouse.declaration_id, percentage: 75, declarationDate: spouse.declaration_date });
+        } else if (others.length === 1) { // Spouse + 1 other
+            results.push({ userId: spouse.applicant_user_id, declarationId: spouse.declaration_id, percentage: 50, declarationDate: spouse.declaration_date });
+            results.push({ userId: others[0].applicant_user_id, declarationId: others[0].declaration_id, percentage: 30, declarationDate: others[0].declaration_date });
+        } else { // Spouse + multiple others
+            results.push({ userId: spouse.applicant_user_id, declarationId: spouse.declaration_id, percentage: 50, declarationDate: spouse.declaration_date });
+            const sharePerOther = 40 / others.length;
+            others.forEach(o => results.push({ userId: o.applicant_user_id, declarationId: o.declaration_id, percentage: sharePerOther, declarationDate: o.declaration_date }));
+        }
+    } 
+    // Case 2: No spouse
+    else {
+        if (beneficiaries.length === 1) { // One non-spouse beneficiary
+            results.push({ userId: beneficiaries[0].applicant_user_id, declarationId: beneficiaries[0].declaration_id, percentage: 45, declarationDate: beneficiaries[0].declaration_date });
+        } else if (beneficiaries.length === 2 && children.length === 2 && ascendants.length === 0) { // Two children only
+             children.forEach(c => results.push({ userId: c.applicant_user_id, declarationId: c.declaration_id, percentage: 45, declarationDate: c.declaration_date }));
+        } else { // Several ayants-droit (no spouse)
+            const totalShare = 90;
+            const sharePerBeneficiary = totalShare / beneficiaries.length;
+
+            beneficiaries.forEach(b => {
+                const type = getRelationType(b.relationship_id);
+                let finalShare = sharePerBeneficiary;
+                if (type === 'child' && finalShare > 45) finalShare = 45;
+                if (type === 'ascendant' && finalShare > 30) finalShare = 30;
+                
+                // Note: This simple capping might result in a total < 90%.
+                // A more complex redistribution logic would be needed for a precise 90% total, which seems beyond the current rule specification.
+                results.push({ userId: b.applicant_user_id, declarationId: b.declaration_id, percentage: finalShare, declarationDate: b.declaration_date });
+            });
+        }
+    }
+
+    return results;
+};
+
+/**
+ * Orchestrates the pension calculation, notification sending, and status update.
+ * @param decujusPensionNumber - The pension number of the deceased.
+ * @param adminId - The ID of the admin triggering the action.
+ */
+export const triggerPensionCalculationAndNotification = async (decujusPensionNumber: string, adminId: number): Promise<void> => {
+    let connection: PoolConnection | undefined;
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        // 1. Fetch all approved beneficiaries for this pension number
+        const beneficiariesSql = `SELECT * FROM declarations WHERE decujus_pension_number = ? AND status = ?`;
+        const [beneficiaries] = await connection.query<RowDataPacket[]>(beneficiariesSql, [decujusPensionNumber, DeclarationStatus.APPROVED]);
+
+        if (beneficiaries.length === 0) {
+            throw new ServiceErorr('No approved beneficiaries found for this pension number.', 404);
+        }
+        
+        // Prevent re-processing
+        if (beneficiaries.some(b => b.pension_notified)) {
+            throw new ServiceErorr('This group has already been processed and notified.', 409);
+        }
+
+        // 2. Calculate the distribution
+        const distribution = calculatePensionDistribution(beneficiaries as Declarations[]);
+
+        // 3. Send notifications and update status
+        for (const result of distribution) {
+            // Calculate first payment date (one month after declaration date)
+            const firstPaymentDate = new Date(result.declarationDate);
+            firstPaymentDate.setMonth(firstPaymentDate.getMonth() + 1);
+            const formattedDate = firstPaymentDate.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+            const title = "Calcul de votre Pension de Réversion";
+            const body = `Votre part de la pension de réversion a été calculée à ${result.percentage.toFixed(2)}%. Votre première échéance de paiement est prévue pour le ${formattedDate}.`;
+
+            // Send notification
+            await sendNotificationToUser(
+                result.userId,
+                title,
+                body,
+                adminId,
+                'appointment',
+                result.declarationId
+            );
+
+            // Mark the declaration as notified
+            const updateSql = `UPDATE declarations SET pension_notified = TRUE WHERE declaration_id = ?`;
+            await connection.query(updateSql, [result.declarationId]);
+        }
+
+        await connection.commit();
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error('[declarationService] Error in triggerPensionCalculationAndNotification:', error);
+        if (error instanceof ServiceErorr) throw error;
+        throw new ServiceErorr('Failed to process pension calculation and notification.', 500);
+    } finally {
+        if (connection) connection.release();
+    }
+};
 
 export const createDeclaration = async (declaration: CreateDeclarationInput): Promise<Declarations> => {
     

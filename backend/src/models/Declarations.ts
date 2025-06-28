@@ -19,10 +19,13 @@ export interface Declarations {
    status: Status; 
    created_at: Date ;
    updated_at: Date ;
+   pension_notified: boolean; 
 
 } 
 
-export type CreateDeclarationInput = Omit<Declarations, 'declaration_id' | 'created_at' | 'updated_at' | 'declaration_date' | 'status'> & {
+// --- CORRECTED LINE ---
+// Omit 'pension_notified' along with the other auto-generated fields.
+export type CreateDeclarationInput = Omit<Declarations, 'declaration_id' | 'created_at' | 'updated_at' | 'declaration_date' | 'status' | 'pension_notified'> & {
     applicant_user_id: number;
     decujus_pension_number: string | null;
     relationship_id: number;

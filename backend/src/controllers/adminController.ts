@@ -551,3 +551,40 @@ function calculateAppointmentTime(baseTime: string, index: number): string {
     
     return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}:00`;
 }
+
+
+/**
+ * [NEW] Gets all approved declarations, grouped by decujus pension number.
+ */
+export const getApprovedDeclarationGroups = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const groups = await declarationService.getApprovedDeclarationsGroupedByPensionNumber();
+        res.status(200).json(groups);
+    } catch (error) {
+        console.error('Controller error during getApprovedDeclarationGroups:', error);
+        next(error);
+    }
+};
+
+/**
+ * [NEW] Handles the request to calculate pension distribution and notify users.
+ */
+export const handlePensionCalculation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const adminId = (req as any).user.userId;
+        const { decujusPensionNumber } = req.body;
+
+        if (!decujusPensionNumber) {
+            res.status(400).json({ message: 'decujusPensionNumber is required.' });
+            return;
+        }
+
+        await declarationService.triggerPensionCalculationAndNotification(decujusPensionNumber, adminId);
+
+        res.status(200).json({ success: true, message: `Bénéficiaires pour le N° ${decujusPensionNumber} notifiés avec succès.` });
+
+    } catch (error) {
+        console.error('Controller error during handlePensionCalculation:', error);
+        next(error);
+    }
+};
