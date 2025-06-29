@@ -1,15 +1,23 @@
+// lib/screens/DocumentUploadScreen.dart
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:image/image.dart' as img;
-import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:frontend/services/scanService.dart' as scanService;
 import 'package:frontend/models/document.dart';
 import 'package:frontend/services/document_service.dart';
 import 'package:frontend/constants/colors.dart';
 import 'package:frontend/widgets/loading_indicator.dart';
+
+// Helper class to store the file and whether it was scanned.
+class _SelectedFile {
+  final File file;
+  // We keep this flag to know the origin, even if the upload service doesn't need it.
+  // It could be useful for analytics in the future.
+  final bool isScanned;
+
+  _SelectedFile(this.file, {this.isScanned = false});
+}
 
 class DocumentUploadScreen extends StatefulWidget {
   final int declarationId;
@@ -29,9 +37,9 @@ class DocumentUploadScreen extends StatefulWidget {
 
 class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   final DocumentService _documentService = DocumentService();
-  
+
   List<DeclarationDocument> _documents = [];
-  Map<int, File?> _selectedFiles = {};
+  Map<int, _SelectedFile> _selectedFiles = {};
   Map<int, bool> _uploadingStatus = {};
   bool _isLoading = true;
   String? _errorMessage;
@@ -42,48 +50,69 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     _loadDocuments();
   }
 
-  Future<void> _loadDocuments() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<void> _loadDocuments({bool isRefresh = false}) async {
+    if (!isRefresh) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
-      final documents = await _documentService.getDeclarationDocuments(widget.declarationId);
-      setState(() {
-        _documents = documents;
-        _isLoading = false;
-      });
+      final documents =
+          await _documentService.getDeclarationDocuments(widget.declarationId);
+      if (mounted) {
+        setState(() {
+          _documents = documents;
+          if (!isRefresh) {
+            _isLoading = false;
+          }
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = e.toString();
-      });
+      if (mounted) {
+        setState(() {
+          if (!isRefresh) {
+            _isLoading = false;
+          }
+          _errorMessage = e.toString();
+        });
+      }
     }
   }
 
   Future<void> _pickFile(int declarationDocumentId) async {
-    final document = _documents.firstWhere((d) => d.declarationDocumentId == declarationDocumentId);
+    final document =
+        _documents.firstWhere((d) => d.declarationDocumentId == declarationDocumentId);
 
-    // Allow picking a file only if not approved
     if (document.status == DocumentStatus.approved) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ce document a déjà été approuvé et ne peut pas être modifié.')),
+        const SnackBar(
+            content: Text(
+                'Ce document a déjà été approuvé et ne peut pas être modifié.')),
       );
       return;
     }
 
     try {
-      // Use regular file picker instead of camera scanner to avoid crashes
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'svg', 'heic'],
+        allowedExtensions: [
+          'pdf',
+          'jpg',
+          'jpeg',
+          'png',
+          'doc',
+          'docx',
+          'svg',
+          'heic'
+        ],
       );
 
       if (result != null && result.files.single.path != null) {
         setState(() {
-          _selectedFiles[declarationDocumentId] = File(result.files.single.path!);
-          // Reset error message when a file is picked
+          _selectedFiles[declarationDocumentId] =
+              _SelectedFile(File(result.files.single.path!));
           _errorMessage = null;
         });
       }
@@ -94,9 +123,41 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     }
   }
 
-  Future<void> _uploadDocument(int declarationDocumentId) async {
-    final file = _selectedFiles[declarationDocumentId];
-    if (file == null) return;
+  Future<void> _scanDocument(int declarationDocumentId) async {
+     final document =
+        _documents.firstWhere((d) => d.declarationDocumentId == declarationDocumentId);
+
+    if (document.status == DocumentStatus.approved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Ce document a déjà été approuvé et ne peut pas être modifié.')),
+      );
+      return;
+    }
+
+    try {
+      String filePath = await scanService.getImageBalayage(lang: "fr");
+
+      if (filePath.isNotEmpty && mounted) {
+        setState(() {
+          _selectedFiles[declarationDocumentId] =
+              _SelectedFile(File(filePath), isScanned: true);
+          _errorMessage = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Erreur lors du scan: $e';
+        });
+      }
+    }
+  }
+  
+  Future<void> _uploadSingleDocument(int declarationDocumentId) async {
+    final selectedFile = _selectedFiles[declarationDocumentId];
+    if (selectedFile == null) return;
 
     setState(() {
       _uploadingStatus[declarationDocumentId] = true;
@@ -104,43 +165,52 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     });
 
     try {
-      await _documentService.uploadDocument(widget.declarationId, declarationDocumentId, file);
-      
-      // Refresh the documents list to show updated status
-      await _loadDocuments();
-      
-      setState(() {
-        _uploadingStatus[declarationDocumentId] = false;
-        _selectedFiles[declarationDocumentId] = null;
-      });
+      // [MODIFICATION] The call to the service is now simpler.
+      // We no longer pass the 'isScanned' flag.
+      await _documentService.uploadDocument(
+        widget.declarationId,
+        declarationDocumentId,
+        selectedFile.file,
+      );
+
+      await _loadDocuments(isRefresh: true);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Document téléchargé avec succès'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        setState(() {
+          _uploadingStatus[declarationDocumentId] = false;
+          _selectedFiles.remove(declarationDocumentId);
+        });
       }
+      
+      if (await selectedFile.file.exists()) {
+        await selectedFile.file.delete();
+      }
+
     } catch (e) {
-      setState(() {
-        _uploadingStatus[declarationDocumentId] = false;
-        _errorMessage = 'Erreur lors de l\'upload du document: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _uploadingStatus[declarationDocumentId] = false;
+          // Don't set the global error message here; let the calling function handle it.
+        });
+      }
+      // Re-throw the error so _uploadAllDocuments knows something went wrong.
+      throw e;
     }
   }
 
   Future<void> _uploadAllDocuments() async {
     final mandatoryDocuments = _documents.where((d) => d.isMandatory).toList();
     final missingDocuments = mandatoryDocuments.where((d) {
-      final isPending = d.status == DocumentStatus.pending || d.status == DocumentStatus.rejected;
+      final isPending =
+          d.status == DocumentStatus.pending || d.status == DocumentStatus.rejected;
       final noFileSelected = _selectedFiles[d.declarationDocumentId] == null;
       return isPending && noFileSelected;
     }).toList();
 
     if (missingDocuments.isNotEmpty) {
       setState(() {
-        _errorMessage = 'Veuillez sélectionner tous les documents obligatoires.';
+        _errorMessage =
+            'Veuillez sélectionner tous les documents obligatoires.';
       });
       return;
     }
@@ -150,13 +220,36 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       _errorMessage = null;
     });
 
-    try {
-      for (final entry in _selectedFiles.entries) {
-        await _uploadDocument(entry.key);
-      }
+    String? errorDuringUpload;
 
-      // Check for any upload errors before navigating
-      if (_errorMessage == null) {
+    try {
+      final keysToUpload = _selectedFiles.keys.toList();
+      for (final key in keysToUpload) {
+        if (!mounted) continue;
+        try {
+          await _uploadSingleDocument(key);
+        } catch (e) {
+          errorDuringUpload = e.toString();
+          break; 
+        }
+      }
+    } catch (e) {
+       errorDuringUpload = 'Une erreur inattendue est survenue: $e';
+    } finally {
+      if (!mounted) return;
+
+      if (errorDuringUpload != null) {
+        setState(() {
+          _errorMessage = errorDuringUpload;
+          _isLoading = false;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Documents téléchargés avec succès'),
+            backgroundColor: Colors.green,
+          ),
+        );
         Navigator.pushReplacementNamed(
           context,
           '/documents-review',
@@ -166,26 +259,23 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
           },
         );
       }
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
   bool _canUploadAll() {
     final mandatoryDocuments = _documents.where((d) => d.isMandatory).toList();
-    if (mandatoryDocuments.isEmpty) return _selectedFiles.isNotEmpty;
-
+    if (_selectedFiles.isEmpty) {
+      return false;
+    }
+    
     return mandatoryDocuments.every((d) {
-      // Can upload if the document is already approved or uploaded
       if (d.status == DocumentStatus.approved || d.status == DocumentStatus.uploaded) {
         return true;
       }
-      // Or if a file has been selected for it
       return _selectedFiles.containsKey(d.declarationDocumentId);
     });
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -193,7 +283,6 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       backgroundColor: AppColors.bgLightColor,
       body: Stack(
         children: [
-          // Background Gradient (same as other screens)
           Container(
             height: MediaQuery.of(context).size.height * 0.35,
             decoration: BoxDecoration(
@@ -208,7 +297,6 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
               ),
             ),
           ),
-          // Main Content
           SafeArea(
             child: SingleChildScrollView(
               child: Padding(
@@ -226,9 +314,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
               ),
             ),
           ),
-          // Loading Indicator Overlay
-          if (_isLoading)
-            const LoadingIndicator(),
+          if (_isLoading) const LoadingIndicator(),
         ],
       ),
     );
@@ -240,8 +326,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.arrow_back, color: AppColors.whiteColor, size: 28),
-              // MODIFIED: This now navigates back to the review screen for a better UX
+              icon: const Icon(Icons.arrow_back,
+                  color: AppColors.whiteColor, size: 28),
               onPressed: () {
                 Navigator.pushReplacementNamed(
                   context,
@@ -312,8 +398,6 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // Error Display
             if (_errorMessage != null)
               Container(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -324,7 +408,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, color: AppColors.errorColor, size: 18),
+                    const Icon(Icons.error_outline,
+                        color: AppColors.errorColor, size: 18),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -339,22 +424,18 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                   ],
                 ),
               ),
-
-            // Documents List
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: _documents.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              separatorBuilder: (context, index) =>
+                  const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final document = _documents[index];
                 return _buildDocumentItem(document);
               },
             ),
-
             const SizedBox(height: 32),
-
-            // Upload All Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -366,7 +447,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  disabledBackgroundColor: AppColors.primaryColor.withOpacity(0.5),
+                  disabledBackgroundColor:
+                      AppColors.primaryColor.withOpacity(0.5),
                 ),
                 icon: const Icon(Icons.cloud_upload, size: 20),
                 label: const Text(
@@ -385,43 +467,48 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   }
 
   Widget _buildDocumentItem(DeclarationDocument document) {
-    final isFileSelected = _selectedFiles.containsKey(document.declarationDocumentId);
+    final isFileSelected =
+        _selectedFiles.containsKey(document.declarationDocumentId);
     final isUploading = _uploadingStatus[document.declarationDocumentId] ?? false;
     final canSelectFile = document.status != DocumentStatus.approved;
 
     return GestureDetector(
-      onTap: canSelectFile ? () => _pickFile(document.declarationDocumentId) : null,
+      onTap:
+          canSelectFile ? () => _pickFile(document.declarationDocumentId) : null,
       child: Container(
         padding: const EdgeInsets.all(20.0),
         decoration: BoxDecoration(
           color: canSelectFile ? Colors.white : AppColors.bgLightColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isFileSelected 
-                ? Colors.blue 
-                : _getStatusColor(document.status, isFileSelected).withOpacity(0.3),
+            color: isFileSelected
+                ? Colors.blue
+                : _getStatusColor(document.status, isFileSelected)
+                    .withOpacity(0.3),
             width: isFileSelected ? 2 : 1,
           ),
-          boxShadow: canSelectFile ? [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              spreadRadius: 0,
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ] : null,
+          boxShadow: canSelectFile
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    spreadRadius: 0,
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                // Status/Upload Icon
                 Container(
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: _getStatusColor(document.status, isFileSelected).withOpacity(0.1),
+                    color: _getStatusColor(document.status, isFileSelected)
+                        .withOpacity(0.1),
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: isUploading
@@ -431,12 +518,12 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                         )
                       : Icon(
                           _getStatusIcon(document.status, isFileSelected),
-                          color: _getStatusColor(document.status, isFileSelected),
+                          color:
+                              _getStatusColor(document.status, isFileSelected),
                           size: 24,
                         ),
                 ),
                 const SizedBox(width: 16),
-                // Document Info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -466,10 +553,12 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        _getStatusText(document.status, isFileSelected, document.rejectionReason),
+                        _getStatusText(document.status, isFileSelected,
+                            document.rejectionReason),
                         style: TextStyle(
                           fontSize: 12,
-                          color: _getStatusColor(document.status, isFileSelected),
+                          color:
+                              _getStatusColor(document.status, isFileSelected),
                           fontWeight: FontWeight.w500,
                         ),
                         maxLines: 2,
@@ -478,17 +567,22 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                     ],
                   ),
                 ),
-                // Action Indicator
                 if (canSelectFile)
                   Icon(
                     isFileSelected ? Icons.edit : Icons.add_circle_outline,
                     color: isFileSelected ? Colors.orange : AppColors.primaryColor,
                     size: 24,
                   ),
+                if (canSelectFile)
+                  IconButton(
+                      onPressed: () => _scanDocument(document.declarationDocumentId),
+                      icon: const Icon(
+                        Icons.document_scanner,
+                        color: AppColors.primaryColor,
+                        size: 24,
+                      ))
               ],
             ),
-            
-            // Selected File Display
             if (isFileSelected) ...[
               const SizedBox(height: 16),
               Container(
@@ -526,7 +620,11 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                             ),
                           ),
                           Text(
-                            _selectedFiles[document.declarationDocumentId]!.path.split('/').last,
+                            _selectedFiles[document.declarationDocumentId]!
+                                .file
+                                .path
+                                .split('/')
+                                .last,
                             style: const TextStyle(
                               fontSize: 14,
                               color: Colors.blue,
@@ -541,13 +639,12 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                 ),
               ),
             ],
-            
-            // Tap to select hint for empty files
             if (!isFileSelected && canSelectFile) ...[
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                 decoration: BoxDecoration(
                   color: AppColors.primaryColor.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(6),
@@ -600,7 +697,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     }
   }
 
-  String _getStatusText(DocumentStatus status, bool isFileSelected, String? rejectionReason) {
+  String _getStatusText(
+      DocumentStatus status, bool isFileSelected, String? rejectionReason) {
     if (isFileSelected) return 'Prêt à uploader';
     switch (status) {
       case DocumentStatus.pending:

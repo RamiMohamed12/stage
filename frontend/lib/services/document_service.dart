@@ -1,3 +1,5 @@
+// lib/services/document_service.dart
+
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -41,6 +43,9 @@ class DocumentService {
     }
   }
 
+  // [MODIFICATION] Simplified the method.
+  // The 'isScanned' parameter is removed as it's no longer needed here.
+  // The service shouldn't care where the file came from, it just needs to upload it.
   Future<void> uploadDocument(int declarationId, int declarationDocumentId, File file) async {
     try {
       print('📤 UPLOAD DEBUG: Starting upload process');
@@ -49,28 +54,26 @@ class DocumentService {
       print('📤 File path: ${file.path}');
       print('📤 File exists: ${await file.exists()}');
       print('📤 File size: ${await file.length()} bytes');
-      
+
       final token = await _tokenService.getToken();
       if (token == null) {
         throw Exception('No authentication token found');
       }
 
-      // Fixed URL to match backend route - removed declarationId from path
       final uploadUrl = '${ApiEndpoints.declarations}/documents/$declarationDocumentId/upload';
       print('📤 Upload URL: $uploadUrl');
 
       var request = http.MultipartRequest('POST', Uri.parse(uploadUrl));
-
-      // Add authorization header
       request.headers['Authorization'] = 'Bearer $token';
       print('📤 Headers: ${request.headers}');
 
-      // Verify file exists before uploading
       if (!await file.exists()) {
         throw Exception('Le fichier sélectionné n\'existe pas');
       }
-
-      // Add the file with proper content type
+      
+      // [SIMPLIFIED] Unified logic for all files.
+      // We always use the memory-efficient ByteStream method.
+      // The if/else for isScanned was removed.
       var stream = http.ByteStream(file.openRead());
       var length = await file.length();
       var fileName = file.path.split('/').last;
@@ -86,10 +89,10 @@ class DocumentService {
         filename: fileName,
         contentType: contentType,
       );
+
       request.files.add(multipartFile);
 
       print('📤 Sending request...');
-      // Send the request
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
 
@@ -106,7 +109,6 @@ class DocumentService {
           final errorData = json.decode(response.body);
           throw Exception(errorData['message'] ?? 'Erreur lors du téléchargement du document');
         } catch (jsonError) {
-          // If JSON parsing fails, use the raw response
           throw Exception('Erreur serveur: ${response.body}');
         }
       }
