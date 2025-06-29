@@ -29,6 +29,7 @@ export interface AdminDeclarationView {
     rejected_documents: number;
     mandatory_documents: number;
     mandatory_verified: number;
+    rejected_reason?: string;  
 }
 
 export interface DeclarationGroupInfo extends 
@@ -416,7 +417,7 @@ export const getUserPendingDeclaration = async (userId: number): Promise<Declara
     }
 }
 
-// New function for admin to get all declarations with user info and document stats
+
 export const getAllDeclarationsForAdmin = async (
     limit: number = 10,
     offset: number = 0,
@@ -426,22 +427,22 @@ export const getAllDeclarationsForAdmin = async (
     let connection: PoolConnection | undefined;
     try {
         connection = await pool.getConnection();
-        
+
         // Build WHERE clause for filtering
         let whereClause = 'WHERE 1=1';
         const queryParams: any[] = [];
-        
+
         if (status && status !== 'all') {
             whereClause += ' AND d.status = ?';
             queryParams.push(status);
         }
-        
+
         if (search) {
             whereClause += ' AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR d.decujus_pension_number LIKE ?)';
             const searchParam = `%${search}%`;
             queryParams.push(searchParam, searchParam, searchParam, searchParam);
         }
-        
+
         // Get total count for pagination
         const countSql = `
             SELECT COUNT(DISTINCT d.declaration_id) as total
@@ -449,13 +450,13 @@ export const getAllDeclarationsForAdmin = async (
             JOIN users u ON d.applicant_user_id = u.user_id
             ${whereClause}
         `;
-        
+
         const [countRows] = await connection.query<RowDataPacket[]>(countSql, queryParams);
         const total = countRows[0].total;
-        
+
         // Get declarations with user info and document statistics
         const sql = `
-            SELECT 
+            SELECT
                 d.declaration_id,
                 d.applicant_user_id,
                 d.decujus_pension_number,
@@ -474,6 +475,9 @@ export const getAllDeclarationsForAdmin = async (
                 COUNT(CASE WHEN dd.status = 'uploaded' THEN 1 END) as uploaded_documents,
                 COUNT(CASE WHEN dd.status = 'verified' THEN 1 END) as verified_documents,
                 COUNT(CASE WHEN dd.status = 'rejected' THEN 1 END) as rejected_documents,
+                -- This sub-query checks if there's any history of a rejected document for this declaration.
+                -- We use this to flag a "submitted" declaration as "resubmitted".
+                (SELECT 1 FROM declaration_documents WHERE declaration_id = d.declaration_id AND status = 'rejected' LIMIT 1) as has_rejected_history,
                 COUNT(CASE WHEN rrd.is_mandatory = 1 THEN 1 END) as mandatory_documents,
                 COUNT(CASE WHEN rrd.is_mandatory = 1 AND dd.status = 'verified' THEN 1 END) as mandatory_verified
             FROM declarations d
@@ -481,15 +485,13 @@ export const getAllDeclarationsForAdmin = async (
             LEFT JOIN declaration_documents dd ON d.declaration_id = dd.declaration_id
             LEFT JOIN relationship_required_documents rrd ON d.relationship_id = rrd.relationship_id AND dd.document_type_id = rrd.document_type_id
             ${whereClause}
-            GROUP BY d.declaration_id, d.applicant_user_id, d.decujus_pension_number, d.relationship_id, 
-                     d.death_cause_id, d.declaration_date, d.status, d.created_at, d.updated_at,
-                     u.email, u.first_name, u.last_name
+            GROUP BY d.declaration_id
             ORDER BY d.created_at DESC
             LIMIT ? OFFSET ?
         `;
-        
+
         const [rows] = await connection.query<RowDataPacket[]>(sql, [...queryParams, limit, offset]);
-        
+
         const declarations = rows.map(row => ({
             declaration_id: row.declaration_id,
             applicant_user_id: row.applicant_user_id,
@@ -498,6 +500,9 @@ export const getAllDeclarationsForAdmin = async (
             death_cause_id: row.death_cause_id,
             declaration_date: row.declaration_date,
             status: row.status,
+            // The "rejection_reason" field for the frontend is now a boolean flag derived from our sub-query.
+            // A value of 1 means it has a rejection history.
+            rejection_reason: row.has_rejected_history ? 'has_rejection_history' : null,
             created_at: row.created_at,
             updated_at: row.updated_at,
             declarant_name: row.declarant_name?.trim() || 'Unknown',
@@ -512,12 +517,12 @@ export const getAllDeclarationsForAdmin = async (
             mandatory_documents: row.mandatory_documents || 0,
             mandatory_verified: row.mandatory_verified || 0
         })) as AdminDeclarationView[];
-        
+
         return {
             declarations,
             total
         };
-        
+
     } catch (error) {
         console.error('[declarationService] Error in getAllDeclarationsForAdmin:', error);
         throw new ServiceErorr('Failed to get declarations for admin', 500);
@@ -528,3 +533,30 @@ export const getAllDeclarationsForAdmin = async (
     }
 };
 
+export const resetDeclarationStatusIfRejected = async (declarationId: number): Promise<void> => {
+    let connection: PoolConnection | undefined;
+    try {
+        connection = await pool.getConnection();
+        const sql = `
+            UPDATE declarations 
+            SET status = ? 
+            WHERE declaration_id = ? AND status = ?
+        `;
+        
+        // We only update if the current status is 'rejected'
+        await connection.query<ResultSetHeader>(sql, [
+            DeclarationStatus.SUBMITTED, 
+            declarationId, 
+            DeclarationStatus.REJECTED
+        ]);
+        // No need to check affectedRows. If it's 0, it means the declaration
+        // was not in a 'rejected' state, which is fine and intended.
+    } catch (error) {
+        console.error('[declarationService] Error in resetDeclarationStatusIfRejected:', error);
+        throw new ServiceErorr('Failed to reset declaration status', 500);
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+};

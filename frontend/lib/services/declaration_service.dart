@@ -73,6 +73,32 @@ class DeclarationService {
     }
   }
 
+  // Method to get declaration by ID
+  Future<Map<String, dynamic>> getDeclarationById(int declarationId) async {
+    final token = await _tokenService.getToken();
+    if (token == null) {
+      throw Exception('Token not found. Please login again.');
+    }
+
+    final response = await http.get(
+      Uri.parse('${ApiEndpoints.declarations}/$declarationId'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else if (response.statusCode == 401 || response.statusCode == 403) {
+      throw Exception('Unauthorized: Invalid token');
+    } else if (response.statusCode == 404) {
+      throw Exception('Declaration not found');
+    } else {
+      throw Exception('Failed to get declaration: ${response.statusCode}, ${response.body}');
+    }
+  }
+
   // Method to get user's declarations and check for pending document reviews
   Future<Map<String, dynamic>?> getUserPendingDeclaration() async {
     final token = await _tokenService.getToken();

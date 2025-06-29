@@ -205,21 +205,32 @@ export const handleUploadDeclarationDocument = async (req: Request, res: Respons
         const relativePath = `/uploads/${req.file.filename}`;
         const originalFilename = req.file.originalname;
 
-        const ownerApplicantId = await documentService.getApplicantUserIdForDeclarationDocument(declarationDocumentId);
+        // ======================= [START] MODIFICATION =======================
+        // Fetch both applicant ID and declaration ID for the document.
+        // We need the declaration ID to potentially update the parent declaration's status.
+        // Assume documentService.getDetailsForDeclarationDocument returns { applicantUserId, declarationId }
+        const docDetails = await documentService.getDetailsForDeclarationDocument(declarationDocumentId);
 
-        if (ownerApplicantId === null) {
+        if (!docDetails) {
             res.status(404).json({ message: 'Document record not found or invalid.' });
             return;
         }
-
-        if (ownerApplicantId !== userId) {
+        
+        if (docDetails.applicantUserId !== userId) {
             res.status(403).json({ message: 'Forbidden: You do not have permission to upload to this document record.' });
             return;
         }
 
+        // Update the specific document record with the new file path.
         await documentService.updateDocumentOnUpload(declarationDocumentId, relativePath, originalFilename);
 
-        res.status(200).json({ message: 'Document uploaded successfully.' });
+        // **CRITICAL FIX**: After a successful document upload, check if the parent declaration's
+        // status was 'rejected'. If so, reset it to 'submitted' to put it back in the review queue.
+        await declarationService.resetDeclarationStatusIfRejected(docDetails.declarationId);
+        
+        // ======================== [END] MODIFICATION ========================
+
+        res.status(200).json({ message: 'Document uploaded and declaration status updated for review.' });
 
     } catch (error: unknown) {
         console.error('Controller error during document upload:', error);

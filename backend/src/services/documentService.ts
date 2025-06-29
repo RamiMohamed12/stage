@@ -336,3 +336,45 @@ export const getApplicantUserIdForDeclarationDocument = async (declarationDocume
     }
     return null; // Ensure all code paths return a value
 }
+
+export const getDetailsForDeclarationDocument = async (
+    declarationDocumentId: number
+): Promise<{ applicantUserId: number; declarationId: number } | null> => {
+    let connection: PoolConnection | undefined;
+    try {
+        connection = await pool.getConnection();
+        const sql = `
+            SELECT
+                d.applicant_user_id,
+                dd.declaration_id
+            FROM declaration_documents dd
+            JOIN declarations d ON dd.declaration_id = d.declaration_id
+            WHERE dd.declaration_document_id = ?;
+        `;
+
+        const [rows] = await connection.query<RowDataPacket[]>(sql, [declarationDocumentId]);
+
+        if (rows.length === 0) {
+            return null; // Document or its parent declaration not found
+        }
+
+        const result = rows[0];
+
+        return {
+            applicantUserId: result.applicant_user_id,
+            declarationId: result.declaration_id
+        };
+
+    } catch (error: any) {
+        console.error('Error fetching details for declaration document: ', error.message);
+        // Avoid re-throwing as a new ServiceError if it already is one.
+        if (error instanceof ServiceErorr) {
+            throw error;
+        }
+        throw new ServiceErorr('Error fetching details for declaration document.', 500);
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+};

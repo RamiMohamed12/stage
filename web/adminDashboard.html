@@ -22,6 +22,9 @@
             --gray-color: #959595;
             --text-color: rgba(0, 0, 0, 0.87);
             --border-color: #808080;
+            /* ======================= [START] MODIFICATION ======================= */
+            --resubmitted-color: #8E44AD; /* A distinct purple for resubmitted items */
+            /* ======================== [END] MODIFICATION ======================== */
         }
 
         * {
@@ -267,6 +270,9 @@
         .status-submitted { background: var(--warning-color); color: var(--white-color); }
         .status-approved { background: var(--success-color); color: var(--white-color); }
         .status-rejected { background: var(--error-color); color: var(--white-color); }
+        /* ======================= [START] MODIFICATION ======================= */
+        .status-resubmitted { background: var(--resubmitted-color); color: var(--white-color); }
+        /* ======================== [END] MODIFICATION ======================== */
 
         .declaration-info {
             display: grid;
@@ -654,15 +660,9 @@
             </select>
             <button class="refresh-btn" onclick="loadDeclarations()">🔄 Actualiser</button>
             <button class="approve-all-btn" onclick="approveAllDeclarations()">✅ Tout Approuver</button>
-            <!-- ======================================================= -->
-            <!-- START: Correctly Placed "Calculer les Pensions" Button -->
-            <!-- ======================================================= -->
             <a href="pensionCalculation.html" class="action-btn" style="background-color: var(--violet-color); color: var(--white-color); text-decoration: none; display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 500;">
                 🧮 Calculer les Pensions
             </a>
-            <!-- ======================================================= -->
-            <!-- END: Correctly Placed "Calculer les Pensions" Button   -->
-            <!-- ======================================================= -->
         </div>
 
         <!-- Stats -->
@@ -864,11 +864,21 @@
                 return;
             }
 
-            const declarationsHTML = declarations.map(declaration => `
+            const declarationsHTML = declarations.map(declaration => {
+                // ======================= [START] MODIFICATION =======================
+                // A declaration is considered "resubmitted" if its status is 'submitted' AND
+                // it has a rejection history flag from the backend.
+                const isResubmitted = declaration.status === 'submitted' && declaration.rejection_reason;
+                const statusClass = isResubmitted ? 'status-resubmitted' : `status-${declaration.status}`;
+                const statusLabel = getStatusLabel(declaration.status, isResubmitted);
+                // ======================== [END] MODIFICATION ========================
+
+                return `
                 <div class="declaration-card" onclick="viewDeclaration(${declaration.declaration_id})">
                     <div class="declaration-header">
                         <div class="declaration-id">Déclaration #${declaration.declaration_id}</div>
-                        <span class="status-badge status-${declaration.status}">${getStatusLabel(declaration.status)}</span>
+                        <!-- Use the new status class and label -->
+                        <span class="status-badge ${statusClass}">${statusLabel}</span>
                     </div>
                     
                     <div class="declaration-info">
@@ -923,7 +933,7 @@
                         }
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
 
             content.innerHTML = `
                 <div class="declarations-grid">
@@ -933,7 +943,13 @@
         }
 
         // Helper function to get status label in French
-        function getStatusLabel(status) {
+        // ======================= [START] MODIFICATION =======================
+        function getStatusLabel(status, isResubmitted = false) {
+            // If it's resubmitted, that's the most important status to show.
+            if (isResubmitted) {
+                return 'Resoumise';
+            }
+            // Otherwise, show the normal status.
             const statusLabels = {
                 'submitted': 'Soumise',
                 'approved': 'Approuvée',
@@ -941,6 +957,7 @@
             };
             return statusLabels[status] || status;
         }
+        // ======================== [END] MODIFICATION ========================
 
         // Update pagination
         function updatePagination(pagination) {

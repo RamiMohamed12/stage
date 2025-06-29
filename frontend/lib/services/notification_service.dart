@@ -139,6 +139,8 @@ class NotificationService {
     switch (type) {
       case 'declaration_approved':
       case 'declaration_rejected':
+      case 'appointment':
+      case 'appointment_rejected':
         return 'high_importance_channel';
       case 'document_review':
         return 'document_channel';
@@ -151,6 +153,8 @@ class NotificationService {
     switch (type) {
       case 'declaration_approved':
       case 'declaration_rejected':
+      case 'appointment':
+      case 'appointment_rejected':
         return 'Notifications importantes';
       case 'document_review':
         return 'Révision de documents';
@@ -163,7 +167,9 @@ class NotificationService {
     switch (type) {
       case 'declaration_approved':
       case 'declaration_rejected':
-        return 'Notifications pour les déclarations approuvées ou rejetées';
+      case 'appointment':
+      case 'appointment_rejected':
+        return 'Notifications pour les déclarations approuvées, rejetées et rendez-vous';
       case 'document_review':
         return 'Notifications pour la révision de documents';
       default:
@@ -175,6 +181,8 @@ class NotificationService {
     switch (type) {
       case 'declaration_approved':
       case 'declaration_rejected':
+      case 'appointment':
+      case 'appointment_rejected':
         return Importance.high;
       case 'document_review':
         return Importance.defaultImportance;
@@ -187,6 +195,8 @@ class NotificationService {
     switch (type) {
       case 'declaration_approved':
       case 'declaration_rejected':
+      case 'appointment':
+      case 'appointment_rejected':
         return Priority.high;
       case 'document_review':
         return Priority.defaultPriority;

@@ -6,6 +6,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:frontend/services/scanService.dart' as scanService;
 import 'package:frontend/models/document.dart';
 import 'package:frontend/services/document_service.dart';
+import 'package:frontend/services/declaration_service.dart';
+import 'package:frontend/services/appointment_service.dart';
+import 'package:frontend/services/notification_service.dart';
+import 'package:frontend/models/notification.dart' as NotificationModel;
 import 'package:frontend/constants/colors.dart';
 import 'package:frontend/widgets/loading_indicator.dart';
 
@@ -37,6 +41,9 @@ class DocumentUploadScreen extends StatefulWidget {
 
 class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   final DocumentService _documentService = DocumentService();
+  final DeclarationService _declarationService = DeclarationService();
+  final AppointmentService _appointmentService = AppointmentService();
+  final NotificationService _notificationService = NotificationService();
 
   List<DeclarationDocument> _documents = [];
   Map<int, _SelectedFile> _selectedFiles = {};
@@ -244,12 +251,92 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
           _isLoading = false;
         });
       } else {
+        // ======================= [START] THE CRITICAL FIX =======================
+        // After successful upload, check the latest declaration status and navigate accordingly
+        
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Documents téléchargés avec succès'),
+            content: Text('Documents uploadés avec succès! Vérification du statut...'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
           ),
         );
+
+        // Check the latest declaration status and navigate to the appropriate screen
+        await _checkLatestDeclarationStatusAndNavigate();
+        // ======================== [END] THE CRITICAL FIX ========================
+      }
+    }
+  }
+
+  // NEW METHOD: Check the latest declaration status and navigate accordingly
+  Future<void> _checkLatestDeclarationStatusAndNavigate() async {
+    try {
+      // Wait a moment for the backend to process the uploaded documents
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // Fetch the latest declaration status from the backend
+      final declarationResult = await _declarationService.getDeclarationById(widget.declarationId);
+      
+      // The backend returns the declaration object directly
+      final status = declarationResult['status'];
+      
+      // If declaration is approved, check if appointment exists
+      if (status == 'approved') {
+        // Mark any old rejection notifications for this declaration as read
+        // to prevent them from interfering with navigation
+        await _markOldRejectionNotificationsAsRead();
+        
+        try {
+          final appointmentResult = await _appointmentService.getAppointmentByDeclarationId(widget.declarationId);
+          if (appointmentResult != null) {
+            // Declaration is approved and appointment exists - navigate to success screen
+            if (mounted) {
+              Navigator.pushReplacementNamed(
+                context,
+                '/appointment-success',
+                arguments: {
+                  'declarationId': widget.declarationId,
+                  'applicantName': widget.declarantName,
+                },
+              );
+              return;
+            }
+          }
+        } catch (e) {
+          // Appointment not found, but declaration is approved - still navigate to success
+          if (mounted) {
+            Navigator.pushReplacementNamed(
+              context,
+              '/appointment-success',
+              arguments: {
+                'declarationId': widget.declarationId,
+                'applicantName': widget.declarantName,
+              },
+            );
+            return;
+          }
+        }
+      }
+      
+      // If declaration is rejected, navigate to rejection screen
+      if (status == 'rejected') {
+        if (mounted) {
+          Navigator.pushReplacementNamed(
+            context,
+            '/rejection',
+            arguments: {
+              'declarationId': widget.declarationId,
+              'applicantName': widget.declarantName,
+              'rejectionReason': declarationResult['rejection_reason'] ?? 'Raison non spécifiée',
+            },
+          );
+          return;
+        }
+      }
+      
+      // For other statuses (pending, submitted), navigate to documents review screen
+      if (mounted) {
         Navigator.pushReplacementNamed(
           context,
           '/documents-review',
@@ -259,6 +346,48 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
           },
         );
       }
+    } catch (e) {
+      // If there's an error fetching the declaration status, navigate to documents review as fallback
+      print('Error checking declaration status: $e');
+      if (mounted) {
+        Navigator.pushReplacementNamed(
+          context,
+          '/documents-review',
+          arguments: {
+            'declarationId': widget.declarationId,
+            'applicantName': widget.declarantName,
+          },
+        );
+      }
+    }
+  }
+
+  // NEW METHOD: Mark old rejection notifications as read
+  Future<void> _markOldRejectionNotificationsAsRead() async {
+    try {
+      // Get all unread rejection notifications for this declaration
+      final result = await _notificationService.getUserNotifications(limit: 100, unreadOnly: true);
+      if (result['success'] == true) {
+        final notifications = result['notifications'] as List<NotificationModel.Notification>;
+        
+        // Find rejection notifications for this declaration
+        final rejectionNotifications = notifications.where((notification) => 
+          notification.type == 'declaration_rejected' && 
+          notification.relatedId == widget.declarationId
+        ).toList();
+        
+        // Mark each rejection notification as read
+        for (final notification in rejectionNotifications) {
+          await _notificationService.markNotificationAsRead(notification.notificationId);
+        }
+        
+        if (rejectionNotifications.isNotEmpty) {
+          print('Marked ${rejectionNotifications.length} old rejection notifications as read for declaration ${widget.declarationId}');
+        }
+      }
+    } catch (e) {
+      // Silent fail - this is not critical
+      print('Error marking old rejection notifications as read: $e');
     }
   }
 

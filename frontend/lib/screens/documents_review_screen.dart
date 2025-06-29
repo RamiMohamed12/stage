@@ -4,6 +4,8 @@ import 'package:frontend/models/document.dart';
 import 'package:frontend/services/document_service.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/services/notification_service.dart';
+import 'package:frontend/services/declaration_service.dart';
+import 'package:frontend/services/appointment_service.dart';
 import 'package:frontend/models/notification.dart' as NotificationModel;
 import 'package:frontend/widgets/loading_indicator.dart';
 import 'dart:async';
@@ -26,6 +28,8 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
   final DocumentService _documentService = DocumentService();
   final AuthService _authService = AuthService();
   final NotificationService _notificationService = NotificationService();
+  final DeclarationService _declarationService = DeclarationService();
+  final AppointmentService _appointmentService = AppointmentService();
   List<DeclarationDocument> _documents = [];
   List<NotificationModel.Notification> _notifications = [];
   NotificationModel.NotificationStats? _notificationStats;
@@ -136,8 +140,61 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
         _loadNotificationStats();
       }
       
-      // If there's a rejection notification, navigate to the rejection screen
-      if (anyRejectionNotification.notificationId != 0) {
+      // CRITICAL FIX: Check the latest declaration status and appointment info
+      // instead of relying only on notifications
+      await _checkLatestDeclarationStatus();
+    }
+  }
+
+  // NEW METHOD: Check the latest declaration status and navigate accordingly
+  Future<void> _checkLatestDeclarationStatus() async {
+    try {
+      // Fetch the latest declaration status from the backend
+      final declarationResult = await _declarationService.getDeclarationById(widget.declarationId);
+      
+      // The backend returns the declaration object directly, not wrapped in a success field
+      final status = declarationResult['status'];
+      
+      // If declaration is approved, check if appointment exists
+      if (status == 'approved') {
+        // Mark any old rejection notifications for this declaration as read
+        // to prevent them from interfering with navigation
+        await _markOldRejectionNotificationsAsRead();
+        
+        try {
+          final appointmentResult = await _appointmentService.getAppointmentByDeclarationId(widget.declarationId);
+          if (appointmentResult != null) {
+            // Declaration is approved and appointment exists - navigate to success screen
+            if (mounted) {
+              Navigator.pushReplacementNamed(
+                context,
+                '/appointment-success',
+                arguments: {
+                  'declarationId': widget.declarationId,
+                  'applicantName': widget.applicantName,
+                },
+              );
+              return;
+            }
+          }
+        } catch (e) {
+          // Appointment not found, but declaration is approved - still navigate to success
+          if (mounted) {
+            Navigator.pushReplacementNamed(
+              context,
+              '/appointment-success',
+              arguments: {
+                'declarationId': widget.declarationId,
+                'applicantName': widget.applicantName,
+              },
+            );
+            return;
+          }
+        }
+      }
+      
+      // If declaration is rejected, navigate to rejection screen
+      if (status == 'rejected') {
         if (mounted) {
           Navigator.pushReplacementNamed(
             context,
@@ -145,27 +202,118 @@ class _DocumentsReviewScreenState extends State<DocumentsReviewScreen> {
             arguments: {
               'declarationId': widget.declarationId,
               'applicantName': widget.applicantName,
-              'rejectionReason': anyRejectionNotification.body,
+              'rejectionReason': declarationResult['rejection_reason'] ?? 'Raison non spécifiée',
             },
           );
           return;
         }
       }
       
-      // If we found an appointment notification for this declaration, navigate to appointment screen
-      if (appointmentNotification.notificationId != 0) {
-        if (mounted) {
-          Navigator.pushReplacementNamed(
-            context,
-            '/appointment-success',
-            arguments: {
-              'declarationId': widget.declarationId,
-              'applicantName': widget.applicantName,
-            },
-          );
-          return;
+      // For other statuses (pending, submitted), stay on current screen
+      // The documents will continue to be reviewed
+    } catch (e) {
+      // If there's an error fetching the declaration status, fall back to notification-based logic
+      print('Error checking declaration status: $e');
+      
+      // Fallback to the original notification-based logic
+      final result = await _notificationService.getUserNotifications(limit: 10, unreadOnly: true);
+      if (result['success'] == true) {
+        final newNotifications = result['notifications'] as List<NotificationModel.Notification>;
+        
+        // Check for appointment notifications related to this declaration
+        final appointmentNotification = newNotifications.firstWhere(
+          (notification) => 
+            notification.type == 'appointment' && 
+            notification.relatedId == widget.declarationId,
+          orElse: () => NotificationModel.Notification(
+            notificationId: 0,
+            userId: 0,
+            title: '',
+            body: '',
+            type: '',
+            isRead: false,
+            sentAt: DateTime.now(),
+            createdAt: DateTime.now(),
+          ),
+        );
+        
+        // Check for any rejection notification related to this declaration
+        final anyRejectionNotification = newNotifications.firstWhere(
+          (notification) => 
+            notification.type == 'declaration_rejected' && 
+            notification.relatedId == widget.declarationId,
+          orElse: () => NotificationModel.Notification(
+            notificationId: 0,
+            userId: 0,
+            title: '',
+            body: '',
+            type: '',
+            isRead: false,
+            sentAt: DateTime.now(),
+            createdAt: DateTime.now(),
+          ),
+        );
+        
+        // If there's a rejection notification, navigate to the rejection screen
+        if (anyRejectionNotification.notificationId != 0) {
+          if (mounted) {
+            Navigator.pushReplacementNamed(
+              context,
+              '/rejection',
+              arguments: {
+                'declarationId': widget.declarationId,
+                'applicantName': widget.applicantName,
+                'rejectionReason': anyRejectionNotification.body,
+              },
+            );
+            return;
+          }
+        }
+        
+        // If we found an appointment notification for this declaration, navigate to appointment screen
+        if (appointmentNotification.notificationId != 0) {
+          if (mounted) {
+            Navigator.pushReplacementNamed(
+              context,
+              '/appointment-success',
+              arguments: {
+                'declarationId': widget.declarationId,
+                'applicantName': widget.applicantName,
+              },
+            );
+            return;
+          }
         }
       }
+    }
+  }
+
+  // NEW METHOD: Mark old rejection notifications as read
+  Future<void> _markOldRejectionNotificationsAsRead() async {
+    try {
+      // Get all unread rejection notifications for this declaration
+      final result = await _notificationService.getUserNotifications(limit: 100, unreadOnly: true);
+      if (result['success'] == true) {
+        final notifications = result['notifications'] as List<NotificationModel.Notification>;
+        
+        // Find rejection notifications for this declaration
+        final rejectionNotifications = notifications.where((notification) => 
+          notification.type == 'declaration_rejected' && 
+          notification.relatedId == widget.declarationId
+        ).toList();
+        
+        // Mark each rejection notification as read
+        for (final notification in rejectionNotifications) {
+          await _notificationService.markNotificationAsRead(notification.notificationId);
+        }
+        
+        if (rejectionNotifications.isNotEmpty) {
+          print('Marked ${rejectionNotifications.length} old rejection notifications as read for declaration ${widget.declarationId}');
+        }
+      }
+    } catch (e) {
+      // Silent fail - this is not critical
+      print('Error marking old rejection notifications as read: $e');
     }
   }
 

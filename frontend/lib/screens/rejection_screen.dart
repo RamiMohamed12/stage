@@ -79,11 +79,13 @@ class RejectionScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                   ],
+                  // ======================= [START] UX MODIFICATION =======================
                   const Text(
-                    'Veuillez corriger les documents requis et soumettre à nouveau votre déclaration.',
+                    'Veuillez corriger les documents requis. Une fois corrigée, votre déclaration sera automatiquement resoumise pour évaluation.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 16),
                   ),
+                  // ======================== [END] UX MODIFICATION ========================
                   const SizedBox(height: 30),
                   ElevatedButton.icon(
                     onPressed: () {
@@ -106,7 +108,8 @@ class RejectionScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   TextButton(
                     onPressed: () {
-                      Navigator.pushNamedAndRemoveUntil(context, '/agencySelection', (route) => false);
+                      // Pop all the way back to the root/home screen
+                      Navigator.of(context).popUntil((route) => route.isFirst);
                     },
                     child: const Text('Retour à l\'accueil'),
                   ),
